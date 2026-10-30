@@ -75,6 +75,16 @@ class EditorCoreInfo {
   /// Stores the current page index so that it can be restored when the file is reloaded.
   int? initialPageIndex;
 
+  /// When the note was created, in milliseconds since epoch (UTC).
+  /// Null for notes created before this field existed.
+  ///
+  /// Stored inside the note because file timestamps don't reliably
+  /// survive syncing through cloud storage.
+  int? createdAt;
+
+  /// When the note was last saved, in milliseconds since epoch (UTC).
+  int? modifiedAt;
+
   static final placeholder =
       EditorCoreInfo._(
         filePath: '',
@@ -105,7 +115,8 @@ class EditorCoreInfo {
       lineHeight = stows.lastLineHeight.value,
       lineThickness = stows.lastLineThickness.value,
       pages = [],
-      assetCache = AssetCache();
+      assetCache = AssetCache(),
+      createdAt = DateTime.now().toUtc().millisecondsSinceEpoch;
 
   new _({
     required this.filePath,
@@ -118,6 +129,8 @@ class EditorCoreInfo {
     required this.pages,
     required this.initialPageIndex,
     required AssetCache? assetCache,
+    this.createdAt,
+    this.modifiedAt,
   }) : assetCache = assetCache ?? AssetCache() {
     _handleEmptyImageIds();
   }
@@ -193,6 +206,8 @@ class EditorCoreInfo {
         ),
         initialPageIndex: json['c'] as int?,
         assetCache: assetCache,
+        createdAt: _parseTimestamp(json['ct']),
+        modifiedAt: _parseTimestamp(json['mt']),
       )
       .._migrateOldStrokesAndImages(
         fileVersion: fileVersion,
@@ -482,6 +497,8 @@ class EditorCoreInfo {
       'lt': lineThickness,
       'z': pages.map((EditorPage page) => page.toJson(assets)).toList(),
       'c': initialPageIndex,
+      if (createdAt != null) 'ct': createdAt,
+      if (modifiedAt != null) 'mt': modifiedAt,
     };
 
     return (json, assets);
@@ -522,6 +539,7 @@ class EditorCoreInfo {
     required int? currentPageIndex,
   }) {
     initialPageIndex = currentPageIndex ?? initialPageIndex;
+    modifiedAt = DateTime.now().toUtc().millisecondsSinceEpoch;
     final (json, assets) = toJson();
     final bson = BsonCodec.serialize(json);
     return (bson.byteList, assets);
@@ -555,6 +573,15 @@ class EditorCoreInfo {
       pages: pages ?? this.pages,
       initialPageIndex: initialPageIndex,
       assetCache: assetCache,
+      createdAt: createdAt,
+      modifiedAt: modifiedAt,
     );
   }
+
+  /// BSON stores large ints as Int64, so accept both.
+  static int? _parseTimestamp(Object? value) => switch (value) {
+    (final int v) => v,
+    (final Int64 v) => v.toInt(),
+    _ => null,
+  };
 }

@@ -7,6 +7,9 @@
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" />
     <!-- Needed for reading files opened with the app -->
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
+    <!-- Needed for keeping notes in a shared folder that a sync app can reach -->
+    <uses-permission android:name="android.permission.MANAGE_EXTERNAL_STORAGE"
+        tools:ignore="ScopedStorage" />
 
     <!-- Remove media permissions from open_filex package -->
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" tools:node="remove" />
@@ -14,7 +17,7 @@
     <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" tools:node="remove" />
 
    <application
-        android:label="Saber"
+        android:label="Saber+"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:supportsRtl="true"
@@ -129,7 +132,7 @@
 
        <provider
            android:name="com.superlist.super_native_extensions.DataProvider"
-           android:authorities="com.adilhanney.saber.SuperClipboardDataProvider"
+           android:authorities="${applicationId}.SuperClipboardDataProvider"
            android:exported="true"
            android:grantUriPermissions="true" >
        </provider>

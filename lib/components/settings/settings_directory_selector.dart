@@ -6,6 +6,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:saber/components/theming/adaptive_alert_dialog.dart';
 import 'package:saber/data/file_manager/file_manager.dart';
 import 'package:saber/data/nextcloud/saber_syncer.dart';
@@ -97,7 +98,14 @@ class _DirectorySelectorState extends State<DirectorySelector> {
   late var _isEmpty = true;
 
   Future<void> _pickDir() async {
-    final directory = await FilePicker.getDirectoryPath(
+    // A folder in shared storage needs "All files access" on Android 11+,
+    // otherwise dart:io can't read or write it.
+    if (defaultTargetPlatform == .android) {
+      final status = await Permission.manageExternalStorage.request();
+      if (!status.isGranted) return;
+    }
+
+    final picked = await FilePicker.getDirectoryPath(
       dialogTitle: widget.title,
       initialDirectory: _directory,
       androidOptions: defaultTargetPlatform == .android
@@ -111,6 +119,10 @@ class _DirectorySelectorState extends State<DirectorySelector> {
           : const .new(),
     );
 
+    if (picked == null) return;
+
+    // The Android picker returns a content:// URI, which dart:io can't use.
+    final directory = androidTreeUriToPath(picked);
     if (directory == null) return;
     if (directory == _directory) return;
 
@@ -203,4 +215,32 @@ class _DirectorySelectorState extends State<DirectorySelector> {
       ],
     );
   }
+}
+
+/// Converts an Android folder picker result into a normal file path.
+///
+/// For example
+/// `content://com.android.externalstorage.documents/tree/primary%3ADocuments%2FSaber`
+/// becomes `/storage/emulated/0/Documents/Saber`.
+/// Anything that is already a path is returned unchanged.
+/// Returns null for URIs that don't map to local storage.
+String? androidTreeUriToPath(String picked) {
+  if (!picked.startsWith('content://')) return picked;
+
+  final uri = Uri.parse(picked);
+  if (uri.host != 'com.android.externalstorage.documents') return null;
+
+  final segments = uri.pathSegments;
+  final treeIndex = segments.indexOf('tree');
+  if (treeIndex == -1 || treeIndex + 1 >= segments.length) return null;
+
+  // e.g. "primary:Documents/Saber" (already percent-decoded)
+  final documentId = segments[treeIndex + 1];
+  final colon = documentId.indexOf(':');
+  if (colon == -1) return null;
+
+  final volume = documentId.substring(0, colon);
+  final relative = documentId.substring(colon + 1);
+  final root = volume == 'primary' ? '/storage/emulated/0' : '/storage/$volume';
+  return relative.isEmpty ? root : '$root/$relative';
 }
