@@ -110,6 +110,15 @@ class _PenModalState<T extends Pen> extends State<PenModal<T>> {
         ],
 
         if (pen is! Highlighter && pen is! ShapePen)
+          _StyleToggle(
+            value: stows.penDashed.value,
+            onPressed: () =>
+                setState(() => stows.penDashed.value = !stows.penDashed.value),
+            tooltip: t.editor.shapeStyle.dashed,
+            icon: Icons.line_style,
+          ),
+
+        if (pen is! Highlighter && pen is! ShapePen)
           IconButton(
             onPressed: () => _showPenFeelSettings(context, pen),
             tooltip: t.editor.penFeel.title,

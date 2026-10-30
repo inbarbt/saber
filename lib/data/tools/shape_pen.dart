@@ -104,14 +104,17 @@ class ShapePen extends Pen {
       simulatePressure: false,
       isComplete: true,
     );
-    Stroke polygon(List<Offset> points) => Stroke(
-      color: rawStroke.color,
-      pressureEnabled: false,
-      options: shapeOptions,
-      pageIndex: rawStroke.pageIndex,
-      page: rawStroke.page,
-      toolId: rawStroke.toolId,
-    )..addPoints(points);
+    Stroke polygon(List<Offset> points) =>
+        Stroke(
+            color: rawStroke.color,
+            pressureEnabled: false,
+            options: shapeOptions,
+            pageIndex: rawStroke.pageIndex,
+            page: rawStroke.page,
+            toolId: rawStroke.toolId,
+          )
+          ..addPoints(points)
+          ..crisp = true;
 
     switch (detected.name) {
       case null:
@@ -119,7 +122,9 @@ class ShapePen extends Pen {
         return rawStroke;
       case DefaultUnistrokeNames.line:
         log.info('Detected line');
-        return rawStroke..convertToLine();
+        return rawStroke
+          ..convertToLine()
+          ..crisp = true;
       case DefaultUnistrokeNames.rectangle:
         // Keep the angle the rectangle was drawn at,
         // unless it's nearly upright.

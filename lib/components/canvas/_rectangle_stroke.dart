@@ -159,6 +159,9 @@ class RectangleStroke extends Stroke {
   bool isStraightLine([int minLength = 0]) => false;
 
   @override
+  bool get isShape => true;
+
+  @override
   List<PointVector> get erasablePoints => [
     for (final corner in [
       rect.topLeft,
@@ -175,7 +178,6 @@ class RectangleStroke extends Stroke {
     if (SelectionTransform.isAxisAligned(m)) {
       return copy()
         ..rect = MatrixUtils.transformRect(m, rect)
-        ..options.size *= SelectionTransform.lengthScale(m)
         ..markPolygonNeedsUpdating();
     }
     // Rotated, it's no longer an axis-aligned rectangle.

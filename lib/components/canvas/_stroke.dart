@@ -49,13 +49,23 @@ class Stroke {
   /// An arrowhead at the end of the stroke.
   var arrowEnd = false;
 
-  bool get hasStyle => dashed || fillColor != null || arrowEnd;
+  /// Drawn as a clean line of constant thickness through its points,
+  /// instead of as handwriting. Used for shapes made of straight sides
+  /// (turned rectangles, triangles, stars, stretched circles).
+  var crisp = false;
+
+  /// Whether this is a drawn shape rather than handwriting.
+  /// Shapes keep their line thickness when resized.
+  bool get isShape => crisp;
+
+  bool get hasStyle => dashed || fillColor != null || arrowEnd || crisp;
 
   /// Saved form of [dashed], [fillColor] and [arrowEnd].
   Map<String, dynamic> get styleJson => {
     if (dashed) 'dsh': true,
     if (fillColor != null) 'fil': fillColor!.toARGB32(),
     if (arrowEnd) 'arw': true,
+    if (crisp) 'crp': true,
   };
 
   void readStyle(Map<String, dynamic> json) {
@@ -66,13 +76,15 @@ class Stroke {
       _ => null,
     };
     arrowEnd = json['arw'] == true;
+    crisp = json['crp'] == true;
   }
 
   /// Copies this stroke's style onto [other] and returns it.
   T withStyleOf<T extends Stroke>(Stroke source) => this as T
     ..dashed = source.dashed
     ..fillColor = source.fillColor
-    ..arrowEnd = source.arrowEnd;
+    ..arrowEnd = source.arrowEnd
+    ..crisp = source.crisp;
 
   List<Offset>? _lowQualityPolygon, _highQualityPolygon;
   List<Offset> get lowQualityPolygon =>
@@ -472,7 +484,8 @@ class Stroke {
           return PointVector(moved.dx, moved.dy, point.pressure);
         }),
       );
-    result.options.size *= SelectionTransform.lengthScale(m);
+    // Handwriting scales its thickness with its size; shapes keep theirs.
+    if (!isShape) result.options.size *= SelectionTransform.lengthScale(m);
     result.markPolygonNeedsUpdating();
     return result;
   }
@@ -480,6 +493,32 @@ class Stroke {
   /// The points along this stroke for erasing part of it.
   /// Shapes return their outline.
   List<PointVector> get erasablePoints => points;
+
+  /// Points along the stroke no more than [step] apart, for hit tests.
+  /// Shapes are stored as a few corners; this fills in their sides.
+  List<Offset> outlinePoints({double step = 4}) {
+    final source = erasablePoints;
+    final result = <Offset>[];
+    for (int i = 0; i < source.length; i++) {
+      final point = source[i];
+      if (i > 0) {
+        final prev = source[i - 1];
+        final extra = ((point - prev).distance / step).floor();
+        for (int k = 1; k <= extra; k++) {
+          result.add(Offset.lerp(prev, point, k / (extra + 1))!);
+        }
+      }
+      result.add(point);
+    }
+    return result;
+  }
+
+  /// Whether this stroke encloses an area (it ends where it starts).
+  bool get isClosedShape {
+    final source = erasablePoints;
+    if (source.length < 3) return false;
+    return (source.first - source.last).distance <= max(options.size * 2, 4);
+  }
 
   /// Erases the part of this stroke within [radius] of [center]
   /// (plus half the stroke's thickness).
@@ -546,7 +585,8 @@ class Stroke {
           toolId: toolId,
         )
         ..points.addAll(piecePoints)
-        ..dashed = dashed;
+        ..dashed = dashed
+        ..crisp = isShape;
 
   /// A plain stroke through [corners] after applying [m],
   /// keeping this stroke's look. Used for shapes that can no longer be
@@ -565,12 +605,11 @@ class Stroke {
       page: page,
       toolId: toolId,
     );
-    result.options.size *= SelectionTransform.lengthScale(m);
     result.addPoints([
       for (final corner in corners) MatrixUtils.transformPoint(m, corner),
     ]);
     result.options.isComplete = true;
-    return result.withStyleOf(this);
+    return result.withStyleOf(this)..crisp = true;
   }
 }
 

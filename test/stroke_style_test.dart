@@ -106,4 +106,38 @@ void main() {
     expect(reversed.styleChanges[stroke]!.previous, after);
     expect(reversed.styleChanges[stroke]!.current, before);
   });
+
+  test('shapes keep their line thickness when resized', () {
+    final stretch = SelectionTransform.resizeMatrix(
+      const SelectionBox(Rect.fromLTWH(0, 0, 10, 10), 0),
+      SelectionHandle.right,
+      const Offset(30, 5),
+      keepAspectRatio: false,
+    );
+    final rect = RectangleStroke(
+      color: Colors.black,
+      pressureEnabled: false,
+      options: StrokeOptions(size: 3),
+      pageIndex: 0,
+      page: page,
+      toolId: .shapePen,
+      rect: const Rect.fromLTWH(0, 0, 10, 10),
+    );
+    final resized = rect.transformed(stretch) as RectangleStroke;
+    expect(resized.options.size, 3);
+    expect(resized.rect, const Rect.fromLTWH(0, 0, 30, 10));
+
+    final triangle = line()
+      ..addPoints(const [Offset(50, 50), Offset.zero])
+      ..crisp = true;
+    expect(triangle.transformed(stretch).options.size, 3);
+
+    // Handwriting still scales its thickness
+    final handwriting = line()..crisp = false;
+    expect(handwriting.transformed(stretch).options.size, isNot(3));
+  });
+
+  test('crisp survives save and load', () {
+    expect(reload(line()..crisp = true).crisp, isTrue);
+  });
 }

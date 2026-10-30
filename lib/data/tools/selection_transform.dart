@@ -10,9 +10,23 @@ enum SelectionHandle {
   topRight,
   bottomLeft,
   bottomRight,
+
+  /// Middle of a side: stretches the selection in one direction only.
+  top,
+  bottom,
+  left,
+  right,
+
   rotate;
 
-  bool get isCorner => this != rotate;
+  bool get isCorner =>
+      this == topLeft ||
+      this == topRight ||
+      this == bottomLeft ||
+      this == bottomRight;
+
+  bool get isEdge =>
+      this == top || this == bottom || this == left || this == right;
 }
 
 /// The box around a selection. It turns with the selection:
@@ -119,6 +133,10 @@ abstract final class SelectionTransform {
       .topRight: box.toPage(r.topRight),
       .bottomLeft: box.toPage(r.bottomLeft),
       .bottomRight: box.toPage(r.bottomRight),
+      .top: box.toPage(r.topCenter),
+      .bottom: box.toPage(r.bottomCenter),
+      .left: box.toPage(r.centerLeft),
+      .right: box.toPage(r.centerRight),
       .rotate: box.toPage(r.topCenter - Offset(0, rotateHandleOffset / scale)),
     };
   }
@@ -154,6 +172,10 @@ abstract final class SelectionTransform {
     .topRight => r.bottomLeft,
     .bottomLeft => r.topRight,
     .bottomRight => r.topLeft,
+    .top => r.bottomCenter,
+    .bottom => r.topCenter,
+    .left => r.centerRight,
+    .right => r.centerLeft,
     .rotate => r.center,
   };
 
@@ -162,6 +184,10 @@ abstract final class SelectionTransform {
     .topRight => r.topRight,
     .bottomLeft => r.bottomLeft,
     .bottomRight => r.bottomRight,
+    .top => r.topCenter,
+    .bottom => r.bottomCenter,
+    .left => r.centerLeft,
+    .right => r.centerRight,
     .rotate => r.topCenter,
   };
 
@@ -173,7 +199,7 @@ abstract final class SelectionTransform {
     Offset pointer, {
     required bool keepAspectRatio,
   }) {
-    assert(handle.isCorner);
+    assert(handle != .rotate);
     final r = box.local;
     final anchor = anchorFor(handle, r);
     final corner = _cornerFor(handle, r);
@@ -189,6 +215,10 @@ abstract final class SelectionTransform {
 
     var sx = factor(local.dx, anchor.dx, corner.dx);
     var sy = factor(local.dy, anchor.dy, corner.dy);
+
+    // Side handles stretch one direction and ignore the aspect ratio.
+    if (handle == .top || handle == .bottom) return (1, sy);
+    if (handle == .left || handle == .right) return (sx, 1);
 
     final hasWidth = r.width.abs() > 1e-6;
     final hasHeight = r.height.abs() > 1e-6;

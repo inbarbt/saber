@@ -166,7 +166,9 @@ abstract class EditorExporter {
                             stroke.options.size * 2;
                     final styledOutline =
                         line.length >= 2 &&
-                        (stroke.dashed || (fillColor != null && closed));
+                        (stroke.crisp ||
+                            stroke.dashed ||
+                            (fillColor != null && closed));
 
                     if (styledOutline) {
                       if (fillColor != null && closed) {

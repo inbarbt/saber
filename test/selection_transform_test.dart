@@ -109,6 +109,39 @@ void main() {
     });
   });
 
+  group('side handles:', () {
+    test('the right handle stretches width only', () {
+      final (sx, sy) = SelectionTransform.resizeFactors(
+        box,
+        SelectionHandle.right,
+        const Offset(500, 999),
+        keepAspectRatio: true,
+      );
+      expect(sx, 2);
+      expect(sy, 1);
+    });
+
+    test('the top handle keeps the bottom side fixed', () {
+      final m = SelectionTransform.resizeMatrix(
+        box,
+        SelectionHandle.top,
+        const Offset(0, 50),
+        keepAspectRatio: true,
+      );
+      expect(
+        MatrixUtils.transformPoint(m, bounds.bottomCenter),
+        bounds.bottomCenter,
+      );
+      expect(MatrixUtils.transformPoint(m, bounds.topCenter).dy, 50);
+    });
+
+    test('side handles sit in the middle of each side', () {
+      final handles = SelectionTransform.handlePositions(box, 1);
+      expect(handles[SelectionHandle.left], bounds.centerLeft);
+      expect(handles[SelectionHandle.bottom], bounds.bottomCenter);
+    });
+  });
+
   group('rotate:', () {
     const center = Offset.zero;
 

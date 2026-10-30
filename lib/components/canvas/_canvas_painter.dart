@@ -168,7 +168,9 @@ class CanvasPainter extends CustomPainter {
         final line = stroke.centerline;
         final closed =
             (line.first - line.last).distance <= stroke.options.size * 2;
-        if (stroke.dashed || (stroke.fillColor != null && closed)) {
+        if (stroke.crisp ||
+            stroke.dashed ||
+            (stroke.fillColor != null && closed)) {
           _drawStyledOutline(
             canvas,
             stroke,
@@ -243,6 +245,23 @@ class CanvasPainter extends CustomPainter {
         ..setFloat(1, color.g)
         ..setFloat(2, color.b);
       paint.maskFilter = _getPencilMaskFilter(currentStroke!.options.size);
+    }
+
+    final line = currentStroke!.centerline;
+    if (currentStroke!.dashed && line.length >= 2) {
+      _drawStyledOutline(
+        canvas,
+        currentStroke!,
+        Path()..addPolygon(line, false),
+        Paint()
+          ..color = paint.color
+          ..style = .stroke
+          ..strokeWidth = currentStroke!.options.size
+          ..strokeCap = .round
+          ..strokeJoin = .round,
+        canFill: false,
+      );
+      return;
     }
 
     // Current stroke always uses high quality
@@ -366,6 +385,13 @@ class CanvasPainter extends CustomPainter {
     final radius = SelectionTransform.handleRadius / scale;
     final fillPaint = Paint()..color = Colors.white;
     for (final MapEntry(key: handle, value: center) in handles.entries) {
+      if (handle.isEdge) {
+        // Side handles: small squares, so they read differently from corners
+        final side = Rect.fromCircle(center: center, radius: radius * 0.75);
+        canvas.drawRect(side, fillPaint);
+        canvas.drawRect(side, linePaint);
+        continue;
+      }
       canvas.drawCircle(
         center,
         radius,

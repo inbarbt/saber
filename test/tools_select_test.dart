@@ -196,6 +196,45 @@ void main() {
       expect(select.selectResult.strokes, [long]);
     });
 
+    test('a shape stored as corners is caught by lassoing one side', () {
+      final select = Select.currentSelect;
+      // A triangle stored as just its corners, like recognised shapes
+      final triangle = line([
+        const Offset(100, 100),
+        const Offset(300, 100),
+        const Offset(200, 300),
+        const Offset(100, 100),
+      ])..crisp = true;
+      // Lasso around the middle of the top side only, missing every corner
+      lassoSquare(select, const Rect.fromLTWH(180, 80, 40, 40));
+      select.onDragEnd([triangle], const []);
+      expect(select.selectResult.strokes, [triangle]);
+    });
+
+    test('a filled shape is caught by lassoing inside it', () {
+      final select = Select.currentSelect;
+      final filled =
+          line([
+              const Offset(100, 100),
+              const Offset(300, 100),
+              const Offset(300, 300),
+              const Offset(100, 300),
+              const Offset(100, 100),
+            ])
+            ..crisp = true
+            ..fillColor = const Color(0x40FF0000);
+      final unfilled = line([
+        const Offset(100, 100),
+        const Offset(300, 100),
+        const Offset(300, 300),
+        const Offset(100, 300),
+        const Offset(100, 100),
+      ])..crisp = true;
+      lassoSquare(select, const Rect.fromLTWH(180, 180, 40, 40));
+      select.onDragEnd([filled, unfilled], const []);
+      expect(select.selectResult.strokes, [filled]);
+    });
+
     test('a line that only passes near the lasso is not selected', () {
       final select = Select.currentSelect;
       // The line runs 3 units outside the lasso's right edge:

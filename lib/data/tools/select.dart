@@ -27,6 +27,9 @@ class Select extends Tool {
   );
   var doneSelecting = false;
 
+  /// The points of the lasso being drawn.
+  final List<Offset> _lassoPoints = [];
+
   @override
   ToolId get toolId => .select;
 
@@ -64,11 +67,13 @@ class Select extends Tool {
       pageIndexStart: pageIndex,
     );
     selectResult.path.moveTo(position.dx, position.dy);
+    _lassoPoints.clear();
     onDragUpdate(position);
   }
 
   void onDragUpdate(Offset position) {
     selectResult.path.lineTo(position.dx, position.dy);
+    _lassoPoints.add(position);
   }
 
   /// Adds the indices of any [strokes] that are inside the selection area
@@ -80,15 +85,7 @@ class Select extends Tool {
     for (int i = 0; i < strokes.length; i++) {
       final stroke = strokes[i];
       if (selectTouched) {
-        // Use the line itself rather than its thick outline,
-        // so strokes that only brush the lasso's edge stay out.
-        final centerline = stroke.centerline;
-        final points = centerline.isNotEmpty
-            ? centerline
-            : stroke.lowQualityPolygon;
-        if (points.any(selectResult.path.contains)) {
-          selectResult.strokes.add(stroke);
-        }
+        if (_lassoTouches(stroke)) selectResult.strokes.add(stroke);
         continue;
       }
       final percentInside = polygonPercentInside(
@@ -109,6 +106,20 @@ class Select extends Tool {
         selectResult.images.add(image);
       }
     }
+  }
+
+  /// Whether the lasso touches [stroke]: some of the line itself (not its
+  /// thick outline, so strokes that only brush the lasso's edge stay out)
+  /// is inside the lasso, or for a filled shape, the lasso is drawn on its
+  /// fill. (An unfilled box around some writing isn't picked up by
+  /// lassoing the writing inside it.)
+  bool _lassoTouches(Stroke stroke) {
+    final path = selectResult.path;
+    if (stroke.outlinePoints().any(path.contains)) return true;
+    if (_lassoPoints.isEmpty || stroke.fillColor == null) return false;
+    if (!stroke.isClosedShape) return false;
+    final area = Path()..addPolygon(stroke.outlinePoints(), true);
+    return _lassoPoints.any(area.contains);
   }
 
   static double rectPercentInside(Path selection, Rect rect) {

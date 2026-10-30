@@ -192,6 +192,7 @@ class Stows {
     true,
     volatile: !_isOnMainIsolate,
   );
+  final penDashed = PlainStow('penDashed', false, volatile: !_isOnMainIsolate);
   final shapeDashed = PlainStow(
     'shapeDashed',
     false,

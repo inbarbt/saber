@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:one_dollar_unistroke_recognizer/one_dollar_unistroke_recognizer.dart';
 import 'package:perfect_freehand/perfect_freehand.dart';
 import 'package:saber/components/canvas/_stroke.dart';
-import 'package:saber/data/tools/selection_transform.dart';
 import 'package:sbn/has_size.dart';
 
 class CircleStroke extends Stroke {
@@ -144,6 +143,9 @@ class CircleStroke extends Stroke {
   bool isStraightLine([int minLength = 0]) => false;
 
   @override
+  bool get isShape => true;
+
+  @override
   List<PointVector> get erasablePoints => [
     for (int i = 0; i <= 64; ++i)
       PointVector.fromOffset(
@@ -165,7 +167,6 @@ class CircleStroke extends Stroke {
       return copy()
         ..center = MatrixUtils.transformPoint(m, center)
         ..radius = radius * sx
-        ..options.size *= SelectionTransform.lengthScale(m)
         ..markPolygonNeedsUpdating();
     }
     // Stretched unevenly, it becomes an ellipse.

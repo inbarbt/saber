@@ -824,6 +824,11 @@ class EditorState extends State<Editor> {
         dragPageIndex!,
         currentPressure,
       );
+      if (stows.penDashed.value &&
+          currentTool is! Highlighter &&
+          currentTool is! ShapePen) {
+        Pen.currentStroke?.dashed = true;
+      }
       _cancelLoopPress();
       _resetHoldShape();
       if (_holdShapeApplies) _restartHoldShapeTimer(position, dragPageIndex!);
@@ -1058,7 +1063,9 @@ class EditorState extends State<Editor> {
         if (newStroke.isEmpty) return;
 
         if (snappedShape != null) {
-          newStroke = ShapePen.strokeToShape(newStroke, snappedShape);
+          final dashed = newStroke.dashed;
+          newStroke = ShapePen.strokeToShape(newStroke, snappedShape)
+            ..dashed = dashed;
         } else if (stows.scribbleToErase.value &&
             currentTool is! ShapePen &&
             currentTool is! Highlighter &&
