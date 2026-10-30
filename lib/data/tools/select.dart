@@ -1,7 +1,10 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:saber/components/canvas/_stroke.dart';
 import 'package:saber/components/canvas/image/editor_image.dart';
 import 'package:saber/data/tools/_tool.dart';
+import 'package:saber/data/tools/shape_geometry.dart';
 import 'package:sbn/tool_id.dart';
 
 class Select extends Tool {
@@ -106,6 +109,26 @@ class Select extends Tool {
         selectResult.images.add(image);
       }
     }
+
+    selectResult.frameAngle = naturalFrameAngle(
+      selectResult.strokes,
+      selectResult.images,
+    );
+  }
+
+  /// The angle the selection box should start at: the shape's own angle
+  /// when a single straight-sided shape is selected (e.g. a turned
+  /// rectangle), so its handles stretch it along its sides. Otherwise 0.
+  static double naturalFrameAngle(
+    List<Stroke> strokes,
+    List<EditorImage> images,
+  ) {
+    if (strokes.length != 1 || images.isNotEmpty) return 0;
+    final shape = strokes.single;
+    if (!shape.crisp) return 0;
+    final corners = ShapeGeometry.minAreaRect(shape.centerline);
+    if (corners.isEmpty) return 0;
+    return ShapeGeometry.rectTurnDegrees(corners) * pi / 180;
   }
 
   /// Whether the lasso touches [stroke]: some of the line itself (not its

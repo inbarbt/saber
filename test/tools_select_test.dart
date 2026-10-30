@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -233,6 +235,39 @@ void main() {
       lassoSquare(select, const Rect.fromLTWH(180, 180, 40, 40));
       select.onDragEnd([filled, unfilled], const []);
       expect(select.selectResult.strokes, [filled]);
+    });
+
+    test('a turned rectangle gets a box at its own angle', () {
+      final select = Select.currentSelect;
+      // A rectangle turned 30 degrees around (200, 200)
+      Offset turn(Offset p) {
+        const a = 30 * pi / 180;
+        return const Offset(200, 200) +
+            Offset(
+              p.dx * cos(a) - p.dy * sin(a),
+              p.dx * sin(a) + p.dy * cos(a),
+            );
+      }
+
+      final corners = [
+        const Offset(-60, -30),
+        const Offset(60, -30),
+        const Offset(60, 30),
+        const Offset(-60, 30),
+      ].map(turn).toList();
+      final rect = line([...corners, corners.first])..crisp = true;
+      lassoSquare(select, const Rect.fromLTWH(100, 100, 200, 200));
+      select.onDragEnd([rect], const []);
+      expect(select.selectResult.strokes, [rect]);
+      expect(select.selectResult.frameAngle * 180 / pi, closeTo(30, 0.5));
+    });
+
+    test('handwriting gets an upright box', () {
+      final select = Select.currentSelect;
+      final writing = line([const Offset(10, 10), const Offset(50, 40)]);
+      lassoSquare(select, const Rect.fromLTWH(0, 0, 60, 60));
+      select.onDragEnd([writing], const []);
+      expect(select.selectResult.frameAngle, 0);
     });
 
     test('a line that only passes near the lasso is not selected', () {

@@ -1882,6 +1882,10 @@ class EditorState extends State<Editor> {
         pageIndexStart: pageIndex,
       );
       select.doneSelecting = true;
+      select.selectResult.frameAngle = Select.naturalFrameAngle(
+        strokes,
+        images,
+      );
       if (currentTool is! Select) {
         // Touching outside the pasted content goes back to this tool.
         _toolBeforeCircleLasso = currentTool;
