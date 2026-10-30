@@ -1,0 +1,87 @@
+# Builds the personal Android build (Saber+) and publishes it as a GitHub release,
+# so Obtainium on the tablet can pick up updates.
+#
+# - Every push to main: test, build, and publish a release.
+# - Pushes to other branches: test and build only. The APK is attached to the run.
+#
+# Signing uses android/fallback-key.jks, which ships with Saber.
+# It stays the same across builds, so updates install over each other.
+
+name: Build Saber+ for Android
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - "**"
+
+jobs:
+  build:
+    name: Test and build APK
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    timeout-minutes: 60
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - uses: "./.github/shared_workflows/install_apt_dependencies"
+
+      - name: Setup Flutter
+        uses: adil192/setup-flutter-submodule@v3
+        with:
+          flutter-path: submodules/flutter
+          no-save-caches: true
+
+      - name: Setup Android build tools
+        run: |
+          ANDROID_NDK=/usr/local/lib/android/sdk/ndk/29.0.14206865
+          echo "ANDROID_NDK=$ANDROID_NDK" >> $GITHUB_ENV
+          echo "ANDROID_NDK_HOME=$ANDROID_NDK" >> $GITHUB_ENV
+          echo "ANDROID_NDK_ROOT=$ANDROID_NDK" >> $GITHUB_ENV
+          echo "JAVA_HOME=$JAVA_HOME_25_X64" >> $GITHUB_ENV
+
+      - name: Disable Flutter CLI animations
+        run: flutter config --no-cli-animations
+
+      - run: flutter pub get
+
+      - name: Run fork tests
+        run: flutter test --no-pub test/fork_infra_test.dart
+
+      - name: Work out version
+        id: version
+        run: |
+          buildName=$(grep -oP "(?<=buildName = ').*(?=')" lib/data/version.dart)
+          # versionCode only has to grow with every build of this package.
+          buildNumber=$(( 1000 + ${{ github.run_number }} ))
+          echo "name=${buildName}-inbar.${{ github.run_number }}" >> $GITHUB_OUTPUT
+          echo "number=${buildNumber}" >> $GITHUB_OUTPUT
+
+      - name: Build APK
+        run: |
+          flutter build apk \
+            --build-name=${{ steps.version.outputs.name }} \
+            --build-number=${{ steps.version.outputs.number }} \
+            --dart-define=UPDATE_CHECK="false"
+          mkdir -p output
+          mv build/app/outputs/flutter-apk/app-release.apk \
+            "output/SaberPlus_v${{ steps.version.outputs.name }}.apk"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: SaberPlus-Android
+          path: output/*.apk
+
+      - name: Publish release
+        if: ${{ github.ref == 'refs/heads/main' }}
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.name }}
+          name: Saber+ ${{ steps.version.outputs.name }}
+          target_commitish: ${{ github.sha }}
+          files: output/*.apk
