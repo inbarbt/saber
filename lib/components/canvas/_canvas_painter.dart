@@ -216,30 +216,11 @@ class CanvasPainter extends CustomPainter {
     List<Offset> line,
     Paint paint,
   ) {
-    final tip = line.last;
-    final reach = max(stroke.options.size * 3, 6.0);
-    // Look back far enough that the pen's wobble doesn't set the direction.
-    var from = line.first;
-    for (int i = line.length - 2; i >= 0; i--) {
-      if ((line[i] - tip).distance >= reach) {
-        from = line[i];
-        break;
-      }
+    final head = ShapeGeometry.arrowhead(line, stroke.options.size);
+    if (head == null) return;
+    for (final (from, to) in head) {
+      canvas.drawLine(from, to, paint);
     }
-    if (from == tip) return;
-    final direction = (tip - from).direction;
-    final length = max(12.0, stroke.options.size * 4);
-    const spread = 2.6; // radians back from the direction, about 150°
-    canvas.drawLine(
-      tip,
-      tip + Offset.fromDirection(direction + spread, length),
-      paint,
-    );
-    canvas.drawLine(
-      tip,
-      tip + Offset.fromDirection(direction - spread, length),
-      paint,
-    );
   }
 
   void _drawCurrentStroke(Canvas canvas) {

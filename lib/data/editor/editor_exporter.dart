@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:math';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -15,6 +16,7 @@ import 'package:saber/components/canvas/canvas_preview.dart';
 import 'package:saber/components/canvas/inner_canvas.dart';
 import 'package:saber/data/editor/editor_core_info.dart';
 import 'package:saber/data/is_this_a_test.dart';
+import 'package:saber/data/tools/shape_geometry.dart';
 import 'package:screenshot/screenshot.dart';
 
 abstract class EditorExporter {
@@ -94,43 +96,105 @@ abstract class EditorExporter {
                     final strokeColor = PdfColor.fromInt(
                       stroke.color.toARGB32(),
                     ).flatten(background: backgroundColor);
+                    final fillColor = stroke.fillColor == null
+                        ? null
+                        : PdfColor.fromInt(stroke.fillColor!.toARGB32())
+                              .flatten(background: backgroundColor);
+                    final pageHeight = pageSize.height;
 
-                    /// Whether we need to fill the shape, or draw its stroke
-                    final bool shouldFillShape;
-                    if (stroke is CircleStroke) {
-                      shouldFillShape = false;
-                      pdfGraphics.drawEllipse(
-                        stroke.center.dx,
-                        pageSize.height - stroke.center.dy,
-                        stroke.radius,
-                        stroke.radius,
-                        clockwise: false,
-                      );
-                    } else if (stroke is RectangleStroke) {
-                      shouldFillShape = false;
-                      final strokeSize = stroke.options.size;
-                      pdfGraphics.drawRRect(
-                        stroke.rect.left,
-                        pageSize.height - stroke.rect.bottom,
-                        stroke.rect.width,
-                        stroke.rect.height,
-                        strokeSize / 4,
-                        strokeSize / 4,
-                      );
-                    } else {
-                      shouldFillShape = true;
-                      pdfGraphics.drawShape(stroke.toSvgPath());
-                    }
-
-                    if (shouldFillShape) {
-                      // fill
-                      pdfGraphics.setFillColor(strokeColor);
-                      pdfGraphics.fillPath();
-                    } else {
-                      // stroke
+                    void outline() {
                       pdfGraphics.setStrokeColor(strokeColor);
                       pdfGraphics.setLineWidth(stroke.options.size);
+                      if (stroke.dashed) {
+                        final size = max(stroke.options.size, 1.0);
+                        pdfGraphics.setLineDashPattern([size * 3, size * 2.5]);
+                      }
                       pdfGraphics.strokePath();
+                      if (stroke.dashed) pdfGraphics.setLineDashPattern();
+                    }
+
+                    void polyline(List<Offset> points, {bool close = false}) {
+                      pdfGraphics.moveTo(
+                        points.first.dx,
+                        pageHeight - points.first.dy,
+                      );
+                      for (final point in points.skip(1)) {
+                        pdfGraphics.lineTo(point.dx, pageHeight - point.dy);
+                      }
+                      if (close) pdfGraphics.closePath();
+                    }
+
+                    void circlePath(CircleStroke circle) =>
+                        pdfGraphics.drawEllipse(
+                          circle.center.dx,
+                          pageHeight - circle.center.dy,
+                          circle.radius,
+                          circle.radius,
+                          clockwise: false,
+                        );
+
+                    void rectPath(RectangleStroke rect) {
+                      final strokeSize = rect.options.size;
+                      pdfGraphics.drawRRect(
+                        rect.rect.left,
+                        pageHeight - rect.rect.bottom,
+                        rect.rect.width,
+                        rect.rect.height,
+                        strokeSize / 4,
+                        strokeSize / 4,
+                      );
+                    }
+
+                    if (stroke is CircleStroke || stroke is RectangleStroke) {
+                      void shapePath() => stroke is CircleStroke
+                          ? circlePath(stroke)
+                          : rectPath(stroke as RectangleStroke);
+                      if (fillColor != null) {
+                        shapePath();
+                        pdfGraphics.setFillColor(fillColor);
+                        pdfGraphics.fillPath();
+                      }
+                      shapePath();
+                      outline();
+                      continue;
+                    }
+
+                    final line = stroke.centerline;
+                    final closed =
+                        line.length >= 2 &&
+                        (line.first - line.last).distance <=
+                            stroke.options.size * 2;
+                    final styledOutline =
+                        line.length >= 2 &&
+                        (stroke.dashed || (fillColor != null && closed));
+
+                    if (styledOutline) {
+                      if (fillColor != null && closed) {
+                        polyline(line, close: true);
+                        pdfGraphics.setFillColor(fillColor);
+                        pdfGraphics.fillPath();
+                      }
+                      polyline(line, close: closed);
+                      outline();
+                    } else {
+                      pdfGraphics.drawShape(stroke.toSvgPath());
+                      pdfGraphics.setFillColor(strokeColor);
+                      pdfGraphics.fillPath();
+                    }
+
+                    if (stroke.arrowEnd && line.length >= 2) {
+                      final head = ShapeGeometry.arrowhead(
+                        line,
+                        stroke.options.size,
+                      );
+                      if (head != null) {
+                        for (final (from, to) in head) {
+                          polyline([from, to]);
+                        }
+                        pdfGraphics.setStrokeColor(strokeColor);
+                        pdfGraphics.setLineWidth(stroke.options.size);
+                        pdfGraphics.strokePath();
+                      }
                     }
                   }
                 },

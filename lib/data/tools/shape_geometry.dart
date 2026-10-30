@@ -89,6 +89,33 @@ abstract final class ShapeGeometry {
     return d;
   }
 
+  /// The two lines of an arrowhead at the end of [line], for a stroke
+  /// [strokeSize] thick. Null if the line has no direction.
+  static List<(Offset, Offset)>? arrowhead(
+    List<Offset> line,
+    double strokeSize,
+  ) {
+    if (line.length < 2) return null;
+    final tip = line.last;
+    final reach = max(strokeSize * 3, 6.0);
+    // Look back far enough that the pen's wobble doesn't set the direction.
+    var from = line.first;
+    for (int i = line.length - 2; i >= 0; i--) {
+      if ((line[i] - tip).distance >= reach) {
+        from = line[i];
+        break;
+      }
+    }
+    if (from == tip) return null;
+    final direction = (tip - from).direction;
+    final length = max(12.0, strokeSize * 4);
+    const spread = 2.6; // radians back from the direction, about 150°
+    return [
+      (tip, tip + Offset.fromDirection(direction + spread, length)),
+      (tip, tip + Offset.fromDirection(direction - spread, length)),
+    ];
+  }
+
   /// Whether a rectangle with these [corners] is close enough to upright.
   static bool isUpright(List<Offset> corners) =>
       rectTurnDegrees(corners).abs() < uprightToleranceDegrees;
