@@ -329,6 +329,10 @@ editor:
     setAsBackground: Set as background
     removeAsBackground: Remove as background
     delete: Delete
+  penFeel:
+    title: Pen feel
+    pressure: Pressure sensitivity
+    stabilization: Stabilization
   eraserBar:
     wholeStroke: Erase whole strokes
     partial: Erase only under the eraser

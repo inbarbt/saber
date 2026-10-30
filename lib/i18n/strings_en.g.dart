@@ -309,6 +309,7 @@ class Translations$editor$en {
 	late final Translations$editor$penOptions$en penOptions = Translations$editor$penOptions$en.internal(_root);
 	late final Translations$editor$colors$en colors = Translations$editor$colors$en.internal(_root);
 	late final Translations$editor$imageOptions$en imageOptions = Translations$editor$imageOptions$en.internal(_root);
+	late final Translations$editor$penFeel$en penFeel = Translations$editor$penFeel$en.internal(_root);
 	late final Translations$editor$eraserBar$en eraserBar = Translations$editor$eraserBar$en.internal(_root);
 	late final Translations$editor$selectionBar$en selectionBar = Translations$editor$selectionBar$en.internal(_root);
 	late final Translations$editor$menu$en menu = Translations$editor$menu$en.internal(_root);
@@ -1260,6 +1261,24 @@ class Translations$editor$imageOptions$en {
 
 	/// en: 'Delete'
 	String get delete => 'Delete';
+}
+
+// Path: editor.penFeel
+class Translations$editor$penFeel$en {
+	Translations$editor$penFeel$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Pen feel'
+	String get title => 'Pen feel';
+
+	/// en: 'Pressure sensitivity'
+	String get pressure => 'Pressure sensitivity';
+
+	/// en: 'Stabilization'
+	String get stabilization => 'Stabilization';
 }
 
 // Path: editor.eraserBar

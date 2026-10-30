@@ -81,9 +81,74 @@ class _PenModalState<T extends Pen> extends State<PenModal<T>> {
             icon: const FaIcon(ShapePen.shapePenIcon),
           ),
         ],
+
+        if (pen is! Highlighter && pen is! ShapePen)
+          IconButton(
+            onPressed: () => _showPenFeelSettings(context, pen),
+            tooltip: t.editor.penFeel.title,
+            icon: const Icon(Icons.tune),
+          ),
       ],
     );
   }
+
+  /// Pressure sensitivity and stabilization for [pen], as levels 0 to 5.
+  /// Level 3 is Saber's default (0.5).
+  void _showPenFeelSettings(BuildContext context, Pen pen) {
+    double toLevel(double value) => (value * PenFeel.levelsPerUnit)
+        .clamp(0, PenFeel.maxLevel)
+        .roundToDouble();
+
+    var pressure = toLevel(pen.options.thinning);
+    var stabilization = toLevel(pen.options.streamline);
+
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const .all(16),
+          child: StatefulBuilder(
+            builder: (context, setSheetState) => Column(
+              mainAxisSize: .min,
+              crossAxisAlignment: .start,
+              children: [
+                Text('${t.editor.penFeel.pressure}: ${pressure.round()}'),
+                Slider(
+                  value: pressure,
+                  max: PenFeel.maxLevel,
+                  divisions: PenFeel.maxLevel.round(),
+                  onChanged: (level) {
+                    setSheetState(() => pressure = level);
+                    pen.options.thinning = PenFeel.toValue(level);
+                  },
+                ),
+                Text(
+                  '${t.editor.penFeel.stabilization}: ${stabilization.round()}',
+                ),
+                Slider(
+                  value: stabilization,
+                  max: PenFeel.maxLevel,
+                  divisions: PenFeel.maxLevel.round(),
+                  onChanged: (level) {
+                    setSheetState(() => stabilization = level);
+                    pen.options.streamline = PenFeel.toValue(level);
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Maps the pen feel levels shown to the user onto stroke options.
+abstract final class PenFeel {
+  static const maxLevel = 5.0;
+  static const levelsPerUnit = 6.0;
+
+  static double toValue(double level) => level / levelsPerUnit;
 }
 
 class const _PenSelector({
