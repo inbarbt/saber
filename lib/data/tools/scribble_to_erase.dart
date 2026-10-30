@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:flutter/widgets.dart';
 import 'package:saber/components/canvas/_stroke.dart';
+import 'package:saber/data/tools/shape_geometry.dart';
 
 /// "Scribble to erase": scribble back and forth over something with the
 /// pen, and it is erased together with the scribble.
@@ -112,33 +113,7 @@ abstract final class ScribbleToErase {
     return Offset(cos(angle), sin(angle));
   }
 
-  /// The convex hull of [points] (Andrew's monotone chain).
-  static List<Offset> convexHull(List<Offset> points) {
-    final sorted = [...points]
-      ..sort(
-        (a, b) => a.dx != b.dx ? a.dx.compareTo(b.dx) : a.dy.compareTo(b.dy),
-      );
-    if (sorted.length < 3) return sorted;
-
-    double cross(Offset o, Offset a, Offset b) =>
-        (a.dx - o.dx) * (b.dy - o.dy) - (a.dy - o.dy) * (b.dx - o.dx);
-
-    final lower = <Offset>[];
-    for (final p in sorted) {
-      while (lower.length >= 2 &&
-          cross(lower[lower.length - 2], lower.last, p) <= 0) {
-        lower.removeLast();
-      }
-      lower.add(p);
-    }
-    final upper = <Offset>[];
-    for (final p in sorted.reversed) {
-      while (upper.length >= 2 &&
-          cross(upper[upper.length - 2], upper.last, p) <= 0) {
-        upper.removeLast();
-      }
-      upper.add(p);
-    }
-    return [...lower..removeLast(), ...upper..removeLast()];
-  }
+  /// The convex hull of [points]. See [ShapeGeometry.convexHull].
+  static List<Offset> convexHull(List<Offset> points) =>
+      ShapeGeometry.convexHull(points);
 }

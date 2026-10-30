@@ -171,6 +171,11 @@ class Stows {
     true,
     volatile: !_isOnMainIsolate,
   );
+  final holdToDrawShape = PlainStow(
+    'holdToDrawShape',
+    true,
+    volatile: !_isOnMainIsolate,
+  );
   final scribbleToErase = PlainStow(
     'scribbleToErase',
     true,

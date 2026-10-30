@@ -322,7 +322,14 @@ class Stroke {
 
   RecognizedUnistroke? detectShape() {
     if (points.length < 3) return null;
-    return recognizeUnistroke(points);
+    // The recognizer scores a path that ends exactly where it started
+    // as NaN and calls it a line, so drop a repeated end point.
+    final input = points.length > 3 && points.first == points.last
+        ? points.sublist(0, points.length - 1)
+        : points;
+    final recognized = recognizeUnistroke(input);
+    if (recognized == null || recognized.score.isNaN) return null;
+    return recognized;
   }
 
   /// Uses the one_dollar_unistroke_recognizer package

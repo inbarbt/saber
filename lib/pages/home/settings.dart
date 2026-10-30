@@ -547,6 +547,12 @@ class _SettingsPageState extends State<SettingsPage> {
                   pref: stows.autoStraightenLines,
                 ),
                 SettingsSwitch(
+                  title: t.settings.prefLabels.holdToDrawShape,
+                  subtitle: t.settings.prefDescriptions.holdToDrawShape,
+                  icon: Icons.category,
+                  pref: stows.holdToDrawShape,
+                ),
+                SettingsSwitch(
                   title: t.settings.prefLabels.scribbleToErase,
                   subtitle: t.settings.prefDescriptions.scribbleToErase,
                   icon: Icons.gesture,

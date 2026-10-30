@@ -9,6 +9,7 @@ import 'package:saber/components/canvas/_rectangle_stroke.dart';
 import 'package:saber/components/canvas/_stroke.dart';
 import 'package:saber/data/prefs.dart';
 import 'package:saber/data/tools/pen.dart';
+import 'package:saber/data/tools/shape_geometry.dart';
 import 'package:saber/i18n/strings.g.dart';
 
 class ShapePen extends Pen {
@@ -71,8 +72,30 @@ class ShapePen extends Pen {
     ShapePen.detectedShape = null;
 
     if (detectedShape == null) return rawStroke;
+    return strokeToShape(rawStroke, detectedShape);
+  }
 
-    switch (detectedShape.name) {
+  /// Replaces a hand-drawn [rawStroke] with the shape it was recognised as.
+  ///
+  /// Used by the shape pen, and by the other pens when the pen is held
+  /// still at the end of a stroke.
+  static Stroke strokeToShape(Stroke rawStroke, RecognizedUnistroke detected) {
+    final shapeOptions = rawStroke.options.copyWith(
+      smoothing: 0,
+      streamline: 0,
+      simulatePressure: false,
+      isComplete: true,
+    );
+    Stroke polygon(List<Offset> points) => Stroke(
+      color: rawStroke.color,
+      pressureEnabled: false,
+      options: shapeOptions,
+      pageIndex: rawStroke.pageIndex,
+      page: rawStroke.page,
+      toolId: rawStroke.toolId,
+    )..addPoints(points);
+
+    switch (detected.name) {
       case null:
         log.info('Detected unknown shape');
         return rawStroke;
@@ -80,42 +103,41 @@ class ShapePen extends Pen {
         log.info('Detected line');
         return rawStroke..convertToLine();
       case DefaultUnistrokeNames.rectangle:
-        final rect = detectedShape.convertToRect();
+        // Keep the angle the rectangle was drawn at,
+        // unless it's nearly upright.
+        final corners = ShapeGeometry.minAreaRect(rawStroke.centerline);
+        if (corners.isNotEmpty && !ShapeGeometry.isUpright(corners)) {
+          log.info('Detected turned rectangle');
+          return polygon([...corners, corners.first]);
+        }
+        final rect = detected.convertToRect();
         log.info('Detected rectangle: $rect');
         return RectangleStroke(
-          color: color,
-          pressureEnabled: pressureEnabled,
-          options: rawStroke.options,
+          color: rawStroke.color,
+          pressureEnabled: false,
+          options: shapeOptions,
           pageIndex: rawStroke.pageIndex,
           page: rawStroke.page,
-          toolId: toolId,
+          toolId: rawStroke.toolId,
           rect: rect,
         );
       case DefaultUnistrokeNames.circle:
-        final (center, radius) = detectedShape.convertToCircle();
+        final (center, radius) = detected.convertToCircle();
         log.info('Detected circle: c=$center, r=$radius');
         return CircleStroke(
-          color: color,
-          pressureEnabled: pressureEnabled,
-          options: rawStroke.options,
+          color: rawStroke.color,
+          pressureEnabled: false,
+          options: shapeOptions,
           pageIndex: rawStroke.pageIndex,
           page: rawStroke.page,
-          toolId: toolId,
+          toolId: rawStroke.toolId,
           radius: radius,
           center: center,
         );
       case DefaultUnistrokeNames.triangle:
       case DefaultUnistrokeNames.star:
-        final polygon = detectedShape.convertToCanonicalPolygon();
-        log.info('Detected ${detectedShape.name}');
-        return Stroke(
-          color: color,
-          pressureEnabled: pressureEnabled,
-          options: rawStroke.options,
-          pageIndex: rawStroke.pageIndex,
-          page: rawStroke.page,
-          toolId: toolId,
-        )..addPoints(polygon);
+        log.info('Detected ${detected.name}');
+        return polygon(detected.convertToCanonicalPolygon());
     }
   }
 }

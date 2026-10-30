@@ -14,6 +14,7 @@ import 'package:saber/data/tools/highlighter.dart';
 import 'package:saber/data/tools/laser_pointer.dart';
 import 'package:saber/data/tools/select.dart';
 import 'package:saber/data/tools/selection_transform.dart';
+import 'package:saber/data/tools/shape_geometry.dart';
 import 'package:saber/data/tools/shape_pen.dart';
 
 class CanvasPainter extends CustomPainter {
@@ -217,8 +218,15 @@ class CanvasPainter extends CustomPainter {
         );
         canvas.drawLine(firstPoint, lastPoint, shapePaint);
       case DefaultUnistrokeNames.rectangle:
-        final rect = shape.convertToRect();
-        canvas.drawRect(rect, shapePaint);
+        // Preview the angle the rectangle will keep (see ShapePen).
+        final corners = currentStroke == null
+            ? const <Offset>[]
+            : ShapeGeometry.minAreaRect(currentStroke!.centerline);
+        if (corners.isNotEmpty && !ShapeGeometry.isUpright(corners)) {
+          canvas.drawPath(Path()..addPolygon(corners, true), shapePaint);
+        } else {
+          canvas.drawRect(shape.convertToRect(), shapePaint);
+        }
       case DefaultUnistrokeNames.circle:
         final (center, radius) = shape.convertToCircle();
         canvas.drawCircle(center, radius, shapePaint);

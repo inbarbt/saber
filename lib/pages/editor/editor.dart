@@ -553,6 +553,49 @@ class EditorState extends State<Editor> {
     });
   }
 
+  /// Hold to draw shape: holding the pen still at the end of a stroke
+  /// turns it into the shape it looks like (regular pens, not the shape
+  /// pen or highlighter, which have their own behaviour).
+  Timer? _holdShapeTimer;
+  Offset _holdShapeAnchor = .zero;
+  var _holdShapeSnapped = false;
+
+  /// How long the pen must stay still, and how far it may wander
+  /// (screen pixels) while still counting as still.
+  static const _holdShapeDuration = Duration(milliseconds: 600);
+  static const _holdShapeTolerance = 6.0;
+
+  bool get _holdShapeApplies =>
+      stows.holdToDrawShape.value &&
+      currentTool is Pen &&
+      currentTool is! ShapePen &&
+      currentTool is! Highlighter;
+
+  void _restartHoldShapeTimer(Offset position, int pageIndex) {
+    _holdShapeTimer?.cancel();
+    _holdShapeAnchor = position;
+    _holdShapeTimer = Timer(_holdShapeDuration, () {
+      _holdShapeTimer = null;
+      final stroke = Pen.currentStroke;
+      if (!mounted || stroke == null) return;
+      final points = stroke.centerline;
+      if (points.length < 8) return;
+      final shape = stroke.detectShape();
+      if (shape == null || shape.name == null) return;
+      ShapePen.detectedShape = shape;
+      _holdShapeSnapped = true;
+      HapticFeedback.selectionClick();
+      coreInfo.pages[pageIndex].redrawStrokes();
+    });
+  }
+
+  void _resetHoldShape() {
+    _holdShapeTimer?.cancel();
+    _holdShapeTimer = null;
+    if (_holdShapeSnapped) ShapePen.detectedShape = null;
+    _holdShapeSnapped = false;
+  }
+
   /// State of the current resize or rotate gesture on the selection handles.
   /// [_transformHandle] is null when no such gesture is in progress.
   SelectionHandle? _transformHandle;
@@ -757,6 +800,8 @@ class EditorState extends State<Editor> {
         currentPressure,
       );
       _cancelLoopPress();
+      _resetHoldShape();
+      if (_holdShapeApplies) _restartHoldShapeTimer(position, dragPageIndex!);
       final loop = stows.circleToLasso.value
           ? CircleToLasso.loopAt(
               position,
@@ -823,6 +868,17 @@ class EditorState extends State<Editor> {
 
     if (currentTool is Pen) {
       (currentTool as Pen).onDragUpdate(position, currentPressure);
+      if (_holdShapeApplies &&
+          (position - _holdShapeAnchor).distance >
+              _holdShapeTolerance /
+                  _transformationController.value.approxScale) {
+        // Moving again after a snap goes back to freehand.
+        if (_holdShapeSnapped) {
+          ShapePen.detectedShape = null;
+          _holdShapeSnapped = false;
+        }
+        _restartHoldShapeTimer(position, dragPageIndex!);
+      }
       page.redrawStrokes();
     } else if (currentTool is Eraser) {
       for (final stroke in (currentTool as Eraser).checkForOverlappingStrokes(
@@ -972,6 +1028,7 @@ class EditorState extends State<Editor> {
 
   void onDrawEnd(ScaleEndDetails details) {
     _cancelLoopPress();
+    _holdShapeTimer?.cancel();
     if (dragPageIndex == null) {
       return;
     }
@@ -979,11 +1036,15 @@ class EditorState extends State<Editor> {
     bool shouldSave = true;
     setState(() {
       if (currentTool is Pen) {
-        final newStroke = (currentTool as Pen).onDragEnd();
+        var newStroke = (currentTool as Pen).onDragEnd();
+        final snappedShape = _holdShapeSnapped ? ShapePen.detectedShape : null;
+        _resetHoldShape();
         if (newStroke == null) return;
         if (newStroke.isEmpty) return;
 
-        if (stows.scribbleToErase.value &&
+        if (snappedShape != null) {
+          newStroke = ShapePen.strokeToShape(newStroke, snappedShape);
+        } else if (stows.scribbleToErase.value &&
             currentTool is! ShapePen &&
             currentTool is! Highlighter &&
             ScribbleToErase.isScribble(newStroke.centerline)) {
@@ -2369,6 +2430,7 @@ class EditorState extends State<Editor> {
     _watchServerTimer?.cancel();
     _lastSeenPointerCountTimer?.cancel();
     _loopPressTimer?.cancel();
+    _holdShapeTimer?.cancel();
 
     _removeKeybindings();
 

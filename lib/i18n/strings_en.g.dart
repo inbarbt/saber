@@ -725,6 +725,9 @@ class Translations$settings$prefLabels$en {
 	/// en: 'Auto straighten lines'
 	String get autoStraightenLines => 'Auto straighten lines';
 
+	/// en: 'Hold to draw shape'
+	String get holdToDrawShape => 'Hold to draw shape';
+
 	/// en: 'Scribble to erase'
 	String get scribbleToErase => 'Scribble to erase';
 
@@ -783,6 +786,9 @@ class Translations$settings$prefDescriptions$en {
 
 	/// en: 'Straightens long lines without having to use the shape pen'
 	String get autoStraightenLines => 'Straightens long lines without having to use the shape pen';
+
+	/// en: 'Hold the pen still at the end of a stroke to turn it into a line, rectangle, circle, triangle or star'
+	String get holdToDrawShape => 'Hold the pen still at the end of a stroke to turn it into a line, rectangle, circle, triangle or star';
 
 	/// en: 'Scribble back and forth over writing with the pen to erase it'
 	String get scribbleToErase => 'Scribble back and forth over writing with the pen to erase it';
