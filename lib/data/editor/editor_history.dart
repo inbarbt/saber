@@ -190,6 +190,29 @@ class const HistoricMove({
   );
 }
 
+/// Strokes or images were resized or rotated with the selection handles.
+///
+/// Transformed strokes are new objects: [after] replaced [before]
+/// at the same positions in the page.
+class const HistoricTransform({
+  required final int pageIndex,
+  required final List<Stroke> before,
+  required final List<Stroke> after,
+  required final List<EditorImage> images,
+  required final List<Rect> imageRectsBefore,
+  required final List<Rect> imageRectsAfter,
+}) extends Historic {
+  @override
+  HistoricTransform reverse() => .new(
+    pageIndex: pageIndex,
+    before: after,
+    after: before,
+    images: images,
+    imageRectsBefore: imageRectsAfter,
+    imageRectsAfter: imageRectsBefore,
+  );
+}
+
 /// A [page] was inserted at [pageIndex].
 class const HistoricPageInsert({
   required final int pageIndex,

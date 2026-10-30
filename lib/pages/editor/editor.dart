@@ -47,6 +47,7 @@ import 'package:saber/data/tools/laser_pointer.dart';
 import 'package:saber/data/tools/pen.dart';
 import 'package:saber/data/tools/pencil.dart';
 import 'package:saber/data/tools/select.dart';
+import 'package:saber/data/tools/selection_transform.dart';
 import 'package:saber/data/tools/shape_pen.dart';
 import 'package:saber/i18n/strings.g.dart';
 import 'package:saber/pages/home/whiteboard.dart';
@@ -448,6 +449,17 @@ class EditorState extends State<Editor> {
 
       case (final HistoricBackgroundPatternChange historic):
         coreInfo.backgroundPattern = historic.change.previous;
+
+      case (final HistoricTransform historic):
+        final page = coreInfo.pages[historic.pageIndex];
+        for (int i = 0; i < historic.after.length; i++) {
+          final index = page.strokes.indexOf(historic.after[i]);
+          if (index != -1) page.strokes[index] = historic.before[i];
+        }
+        for (int i = 0; i < historic.images.length; i++) {
+          historic.images[i].dstRect = historic.imageRectsBefore[i];
+        }
+        page.redrawStrokes();
     }
 
     if (historic is! HistoricMove) {
@@ -484,6 +496,117 @@ class EditorState extends State<Editor> {
   /// The total offset of the current move gesture.
   /// Used to record a move in the history.
   Offset moveOffset = .zero;
+
+  /// State of the current resize or rotate gesture on the selection handles.
+  /// [_transformHandle] is null when no such gesture is in progress.
+  SelectionHandle? _transformHandle;
+  Rect _transformStartBounds = .zero;
+  Offset _transformStartPointer = .zero;
+  var _transformStartPath = Path();
+  List<Stroke> _transformOriginals = const [];
+  List<Rect> _transformImageRects = const [];
+
+  /// The selection handle at [position] on the selection's page, if any.
+  SelectionHandle? _selectionHandleAt(Select select, Offset position) {
+    if (!select.doneSelecting) return null;
+    if (select.selectResult.pageIndex != dragPageIndex) return null;
+    final bounds = SelectionTransform.contentBounds(
+      select.selectResult.strokes,
+      select.selectResult.images,
+    );
+    if (bounds == null) return null;
+    return SelectionTransform.hitTest(
+      position,
+      bounds,
+      _transformationController.value.approxScale,
+    );
+  }
+
+  void _startSelectionTransform(
+    Select select,
+    SelectionHandle handle,
+    Offset position,
+  ) {
+    final result = select.selectResult;
+    _transformHandle = handle;
+    _transformStartBounds = SelectionTransform.contentBounds(
+      result.strokes,
+      result.images,
+    )!;
+    _transformStartPointer = position;
+    _transformStartPath = result.path;
+    _transformOriginals = List.of(result.strokes);
+    _transformImageRects = [for (final image in result.images) image.dstRect];
+  }
+
+  void _updateSelectionTransform(Select select, Offset position) {
+    final handle = _transformHandle!;
+    final result = select.selectResult;
+    final Matrix4 matrix;
+    if (handle == .rotate) {
+      final center = _transformStartBounds.center;
+      final degrees = SelectionTransform.rotationDegrees(
+        center,
+        _transformStartPointer,
+        position,
+      );
+      result.rotationDegrees = degrees;
+      matrix = SelectionTransform.rotateMatrix(center, degrees);
+    } else {
+      matrix = SelectionTransform.resizeMatrix(
+        _transformStartBounds,
+        handle,
+        position,
+        keepAspectRatio: SelectionTransform.keepAspectRatio,
+      );
+    }
+
+    // Always transform from the originals, so errors don't build up.
+    final page = coreInfo.pages[result.pageIndex];
+    for (int i = 0; i < _transformOriginals.length; i++) {
+      final next = _transformOriginals[i].transformed(matrix);
+      final index = page.strokes.indexOf(result.strokes[i]);
+      if (index != -1) page.strokes[index] = next;
+      result.strokes[i] = next;
+    }
+    for (int i = 0; i < result.images.length; i++) {
+      result.images[i].dstRect = SelectionTransform.transformImageRect(
+        _transformImageRects[i],
+        matrix,
+      );
+    }
+    result.path = _transformStartPath.transform(matrix.storage);
+  }
+
+  void _endSelectionTransform(Select select) {
+    final result = select.selectResult;
+    result.rotationDegrees = null;
+    _transformHandle = null;
+
+    final after = List.of(result.strokes);
+    final imageRectsAfter = [for (final image in result.images) image.dstRect];
+    var changed = false;
+    for (int i = 0; i < after.length; i++) {
+      if (!identical(after[i], _transformOriginals[i])) changed = true;
+    }
+    for (int i = 0; i < imageRectsAfter.length; i++) {
+      if (imageRectsAfter[i] != _transformImageRects[i]) changed = true;
+    }
+    if (changed) {
+      history.recordChange(
+        HistoricTransform(
+          pageIndex: result.pageIndex,
+          before: _transformOriginals,
+          after: after,
+          images: List.of(result.images),
+          imageRectsBefore: _transformImageRects,
+          imageRectsAfter: imageRectsAfter,
+        ),
+      );
+    }
+    _transformOriginals = const [];
+    _transformImageRects = const [];
+  }
 
   var isHovering = true;
   int? dragPageIndex;
@@ -555,7 +678,10 @@ class EditorState extends State<Editor> {
       removeExcessPages();
     } else if (currentTool is Select) {
       final select = currentTool as Select;
-      if (select.doneSelecting &&
+      final handle = _selectionHandleAt(select, position);
+      if (handle != null) {
+        _startSelectionTransform(select, handle, position);
+      } else if (select.doneSelecting &&
           select.selectResult.pageIndex == dragPageIndex! &&
           select.selectResult.path.contains(position)) {
         // drag selection in onDrawUpdate
@@ -598,6 +724,11 @@ class EditorState extends State<Editor> {
       }
       page.redrawStrokes();
       removeExcessPages();
+    } else if (currentTool is Select && _transformHandle != null) {
+      _updateSelectionTransform(currentTool as Select, position);
+      page.redrawStrokes();
+      previousPosition = position;
+      return;
     } else if (currentTool is Select) {
       final select = currentTool as Select;
       if (select.doneSelecting) {
@@ -760,6 +891,8 @@ class EditorState extends State<Editor> {
         }
         if (erased.isEmpty) return;
         history.recordChange(HistoricDelete(strokes: erased, images: []));
+      } else if (currentTool is Select && _transformHandle != null) {
+        _endSelectionTransform(currentTool as Select);
       } else if (currentTool is Select) {
         if (moveOffset == .zero) return;
         final select = currentTool as Select;

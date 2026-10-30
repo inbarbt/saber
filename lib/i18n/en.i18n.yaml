@@ -326,6 +326,7 @@ editor:
   selectionBar:
     delete: Delete
     duplicate: Duplicate
+    keepAspectRatio: Keep aspect ratio
   menu:
     clearPage: Clear page $page/$totalPages
     clearAllPages: Clear all pages

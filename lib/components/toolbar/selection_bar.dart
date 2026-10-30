@@ -1,6 +1,7 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:saber/components/theming/adaptive_icon.dart';
+import 'package:saber/data/tools/selection_transform.dart';
 import 'package:saber/i18n/strings.g.dart';
 
 class SelectionBar extends StatelessWidget {
@@ -31,6 +32,7 @@ class SelectionBar extends StatelessWidget {
             cupertinoIcon: CupertinoIcons.doc_on_clipboard,
           ),
         ),
+        const _KeepAspectRatioToggle(),
         IconButton(
           onPressed: deleteSelection,
           style: TextButton.styleFrom(
@@ -45,6 +47,37 @@ class SelectionBar extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Toggles whether the corner handles keep the selection's proportions.
+class _KeepAspectRatioToggle extends StatefulWidget {
+  const new();
+
+  @override
+  State<_KeepAspectRatioToggle> createState() => _KeepAspectRatioToggleState();
+}
+
+class _KeepAspectRatioToggleState extends State<_KeepAspectRatioToggle> {
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = ColorScheme.of(context);
+    final enabled = SelectionTransform.keepAspectRatio;
+    return IconButton(
+      onPressed: () => setState(() {
+        SelectionTransform.keepAspectRatio = !enabled;
+      }),
+      isSelected: enabled,
+      style: TextButton.styleFrom(
+        foregroundColor: enabled ? colorScheme.primary : colorScheme.secondary,
+        backgroundColor: enabled
+            ? colorScheme.primary.withValues(alpha: 0.12)
+            : Colors.transparent,
+        shape: const CircleBorder(),
+      ),
+      tooltip: t.editor.selectionBar.keepAspectRatio,
+      icon: const Icon(Icons.aspect_ratio),
     );
   }
 }

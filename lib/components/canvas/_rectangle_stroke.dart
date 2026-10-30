@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:one_dollar_unistroke_recognizer/one_dollar_unistroke_recognizer.dart';
 import 'package:perfect_freehand/perfect_freehand.dart';
 import 'package:saber/components/canvas/_stroke.dart';
+import 'package:saber/data/tools/selection_transform.dart';
 import 'package:sbn/has_size.dart';
 
 class RectangleStroke extends Stroke {
@@ -154,6 +155,24 @@ class RectangleStroke extends Stroke {
   @override
   @Deprecated('We already know the shape is a rectangle.')
   bool isStraightLine([int minLength = 0]) => false;
+
+  @override
+  Stroke transformed(Matrix4 m) {
+    if (SelectionTransform.isAxisAligned(m)) {
+      return copy()
+        ..rect = MatrixUtils.transformRect(m, rect)
+        ..options.size *= SelectionTransform.lengthScale(m)
+        ..markPolygonNeedsUpdating();
+    }
+    // Rotated, it's no longer an axis-aligned rectangle.
+    return polylineThrough([
+      rect.topLeft,
+      rect.topRight,
+      rect.bottomRight,
+      rect.bottomLeft,
+      rect.topLeft,
+    ], m);
+  }
 
   @override
   RectangleStroke copy() => RectangleStroke(

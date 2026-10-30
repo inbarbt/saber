@@ -13,6 +13,7 @@ import 'package:saber/data/extensions/color_extensions.dart';
 import 'package:saber/data/tools/highlighter.dart';
 import 'package:saber/data/tools/laser_pointer.dart';
 import 'package:saber/data/tools/select.dart';
+import 'package:saber/data/tools/selection_transform.dart';
 import 'package:saber/data/tools/shape_pen.dart';
 
 class CanvasPainter extends CustomPainter {
@@ -248,6 +249,63 @@ class CanvasPainter extends CustomPainter {
         ..strokeWidth = 3
         ..style = .stroke,
     );
+
+    _drawSelectionHandles(canvas);
+  }
+
+  /// Draws the box with resize handles and the rotate handle
+  /// around the selected content.
+  void _drawSelectionHandles(Canvas canvas) {
+    final selection = currentSelection!;
+    // Previews are drawn without a real zoom level
+    if (currentScale < 0.01) return;
+    final bounds = SelectionTransform.contentBounds(
+      selection.strokes,
+      selection.images,
+    );
+    if (bounds == null) return;
+
+    final scale = currentScale;
+    final handles = SelectionTransform.handlePositions(bounds, scale);
+    final linePaint = Paint()
+      ..color = primaryColor
+      ..strokeWidth = 1.5 / scale
+      ..style = .stroke;
+
+    canvas.drawRect(bounds, linePaint);
+    canvas.drawLine(
+      bounds.topCenter,
+      handles[SelectionHandle.rotate]!,
+      linePaint,
+    );
+
+    final radius = SelectionTransform.handleRadius / scale;
+    final fillPaint = Paint()..color = Colors.white;
+    for (final MapEntry(key: handle, value: center) in handles.entries) {
+      canvas.drawCircle(
+        center,
+        radius,
+        handle == .rotate ? (Paint()..color = primaryColor) : fillPaint,
+      );
+      canvas.drawCircle(center, radius, linePaint);
+    }
+
+    final degrees = selection.rotationDegrees;
+    if (degrees != null) {
+      final text = TextPainter(
+        text: TextSpan(
+          text: '${degrees.round()}°',
+          style: TextStyle(
+            color: primaryColor,
+            fontSize: 16 / scale,
+            fontWeight: .bold,
+          ),
+        ),
+        textDirection: .ltr,
+      )..layout();
+      final rotateHandle = handles[SelectionHandle.rotate]!;
+      text.paint(canvas, rotateHandle + Offset(radius * 1.8, -text.height / 2));
+    }
   }
 
   static const double _pageIndicatorFontSize = 20;

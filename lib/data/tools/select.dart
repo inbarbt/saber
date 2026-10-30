@@ -131,6 +131,9 @@ class SelectResult {
   Path path;
   int? pageIndexStart;
 
+  /// The current angle while the selection is being rotated, for display.
+  double? rotationDegrees;
+
   new({
     required this.pageIndex,
     required this.strokes,

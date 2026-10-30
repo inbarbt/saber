@@ -10,6 +10,7 @@ import 'package:saber/components/canvas/_circle_stroke.dart';
 import 'package:saber/components/canvas/_rectangle_stroke.dart';
 import 'package:saber/data/extensions/list_extensions.dart';
 import 'package:saber/data/extensions/point_extensions.dart';
+import 'package:saber/data/tools/selection_transform.dart';
 import 'package:sbn/has_size.dart';
 import 'package:sbn/tool_id.dart';
 
@@ -408,6 +409,48 @@ class Stroke {
     page: page,
     toolId: toolId,
   )..points.addAll(points);
+
+  /// A copy of this stroke with [m] applied to every point.
+  /// The thickness scales with the overall size change.
+  Stroke transformed(Matrix4 m) {
+    final result = copy();
+    result.points
+      ..clear()
+      ..addAll(
+        points.map((point) {
+          final moved = MatrixUtils.transformPoint(m, Offset(point.x, point.y));
+          return PointVector(moved.dx, moved.dy, point.pressure);
+        }),
+      );
+    result.options.size *= SelectionTransform.lengthScale(m);
+    result.markPolygonNeedsUpdating();
+    return result;
+  }
+
+  /// A plain stroke through [corners] after applying [m],
+  /// keeping this stroke's look. Used for shapes that can no longer be
+  /// described by their own class, e.g. a rotated rectangle.
+  @protected
+  Stroke polylineThrough(List<Offset> corners, Matrix4 m) {
+    final result = Stroke(
+      color: color,
+      pressureEnabled: false,
+      options: options.copyWith(
+        smoothing: 0,
+        streamline: 0,
+        simulatePressure: false,
+      ),
+      pageIndex: pageIndex,
+      page: page,
+      toolId: toolId,
+    );
+    result.options.size *= SelectionTransform.lengthScale(m);
+    result.addPoints([
+      for (final corner in corners) MatrixUtils.transformPoint(m, corner),
+    ]);
+    result.options.isComplete = true;
+    return result;
+  }
 }
 
 class StrokeQuality {

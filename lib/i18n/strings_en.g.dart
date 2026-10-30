@@ -1256,6 +1256,9 @@ class Translations$editor$selectionBar$en {
 
 	/// en: 'Duplicate'
 	String get duplicate => 'Duplicate';
+
+	/// en: 'Keep aspect ratio'
+	String get keepAspectRatio => 'Keep aspect ratio';
 }
 
 // Path: editor.menu

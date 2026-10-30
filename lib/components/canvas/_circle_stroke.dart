@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:one_dollar_unistroke_recognizer/one_dollar_unistroke_recognizer.dart';
 import 'package:perfect_freehand/perfect_freehand.dart';
 import 'package:saber/components/canvas/_stroke.dart';
+import 'package:saber/data/tools/selection_transform.dart';
 import 'package:sbn/has_size.dart';
 
 class CircleStroke extends Stroke {
@@ -139,6 +140,31 @@ class CircleStroke extends Stroke {
   @override
   @Deprecated('We already know the shape is a circle.')
   bool isStraightLine([int minLength = 0]) => false;
+
+  @override
+  Stroke transformed(Matrix4 m) {
+    // How much each axis is stretched
+    final sx = sqrt(
+      m.entry(0, 0) * m.entry(0, 0) + m.entry(1, 0) * m.entry(1, 0),
+    );
+    final sy = sqrt(
+      m.entry(0, 1) * m.entry(0, 1) + m.entry(1, 1) * m.entry(1, 1),
+    );
+    if ((sx - sy).abs() < 1e-6) {
+      // Still a circle (rotating a circle doesn't change it)
+      return copy()
+        ..center = MatrixUtils.transformPoint(m, center)
+        ..radius = radius * sx
+        ..options.size *= SelectionTransform.lengthScale(m)
+        ..markPolygonNeedsUpdating();
+    }
+    // Stretched unevenly, it becomes an ellipse.
+    const segments = 64;
+    return polylineThrough([
+      for (int i = 0; i <= segments; ++i)
+        center + Offset.fromDirection(2 * pi * i / segments, radius),
+    ], m);
+  }
 
   @override
   CircleStroke copy() => CircleStroke(
