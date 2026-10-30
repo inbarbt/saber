@@ -17,6 +17,11 @@ class SelectionBar extends StatelessWidget {
   final double? Function()? getSelectionSize;
   final ValueChanged<double>? setSelectionSize;
 
+  /// Which styles the whole selection has, or null if nothing is selected.
+  final ({bool dashed, bool filled, bool arrow})? Function()? getSelectionStyle;
+  final void Function({bool? dashed, bool? filled, bool? arrow})?
+  setSelectionStyle;
+
   const new({
     super.key,
     required this.duplicateSelection,
@@ -26,11 +31,60 @@ class SelectionBar extends StatelessWidget {
     this.pasteSelection,
     this.getSelectionSize,
     this.setSelectionSize,
+    this.getSelectionStyle,
+    this.setSelectionStyle,
   });
 
   /// Thicknesses offered by the picker.
   static const minThickness = 1.0;
   static const maxThickness = 25.0;
+
+  void _showStylePicker(BuildContext context) {
+    var style = getSelectionStyle!();
+    if (style == null) return;
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: StatefulBuilder(
+          builder: (context, setState) {
+            void refresh() => setState(() => style = getSelectionStyle!());
+            return Column(
+              mainAxisSize: .min,
+              children: [
+                SwitchListTile(
+                  title: Text(t.editor.shapeStyle.dashed),
+                  secondary: const Icon(Icons.line_style),
+                  value: style!.dashed,
+                  onChanged: (v) {
+                    setSelectionStyle!(dashed: v);
+                    refresh();
+                  },
+                ),
+                SwitchListTile(
+                  title: Text(t.editor.shapeStyle.fill),
+                  secondary: const Icon(Icons.format_color_fill),
+                  value: style!.filled,
+                  onChanged: (v) {
+                    setSelectionStyle!(filled: v);
+                    refresh();
+                  },
+                ),
+                SwitchListTile(
+                  title: Text(t.editor.shapeStyle.arrow),
+                  secondary: const Icon(Icons.arrow_right_alt),
+                  value: style!.arrow,
+                  onChanged: (v) {
+                    setSelectionStyle!(arrow: v);
+                    refresh();
+                  },
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
 
   void _showThicknessPicker(BuildContext context) {
     final initial = getSelectionSize!();
@@ -87,6 +141,12 @@ class SelectionBar extends StatelessWidget {
             onPressed: pasteSelection!,
             tooltip: t.editor.selectionBar.paste,
             icon: Icons.content_paste,
+          ),
+        if (getSelectionStyle != null && setSelectionStyle != null)
+          _SelectionBarButton(
+            onPressed: () => _showStylePicker(context),
+            tooltip: t.editor.shapeStyle.title,
+            icon: Icons.line_style,
           ),
         if (getSelectionSize != null && setSelectionSize != null)
           _SelectionBarButton(

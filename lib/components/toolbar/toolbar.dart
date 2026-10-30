@@ -54,6 +54,8 @@ class Toolbar extends StatefulWidget {
     this.pasteSelection,
     this.getSelectionSize,
     this.setSelectionSize,
+    this.getSelectionStyle,
+    this.setSelectionStyle,
     required this.exportAsSba,
     required this.exportAsPdf,
     required this.exportAsPng,
@@ -87,6 +89,9 @@ class Toolbar extends StatefulWidget {
   final VoidCallback? pasteSelection;
   final double? Function()? getSelectionSize;
   final ValueChanged<double>? setSelectionSize;
+  final ({bool dashed, bool filled, bool arrow})? Function()? getSelectionStyle;
+  final void Function({bool? dashed, bool? filled, bool? arrow})?
+  setSelectionStyle;
 
   final Future Function(BuildContext)? exportAsSba;
   final Future Function(BuildContext)? exportAsPdf;
@@ -272,6 +277,8 @@ class _ToolbarState extends State<Toolbar> {
                 pasteSelection: widget.pasteSelection,
                 getSelectionSize: widget.getSelectionSize,
                 setSelectionSize: widget.setSelectionSize,
+                getSelectionStyle: widget.getSelectionStyle,
+                setSelectionStyle: widget.setSelectionStyle,
               ),
             },
           );

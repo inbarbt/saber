@@ -57,20 +57,22 @@ class RectangleStroke extends Stroke {
         json['rw'] ?? 0,
         json['rh'] ?? 0,
       ),
-    );
+    )..readStyle(json);
   }
   @override
   Map<String, dynamic> toJson() {
     return {
-      'shape': 'rect',
-      'i': pageIndex,
-      'rl': rect.left,
-      'rt': rect.top,
-      'rw': rect.width,
-      'rh': rect.height,
-      'pe': pressureEnabled,
-      'c': color.toARGB32(),
-    }..addAll(options.toJson());
+        'shape': 'rect',
+        'i': pageIndex,
+        'rl': rect.left,
+        'rt': rect.top,
+        'rw': rect.width,
+        'rh': rect.height,
+        'pe': pressureEnabled,
+        'c': color.toARGB32(),
+      }
+      ..addAll(options.toJson())
+      ..addAll(styleJson);
   }
 
   @override
@@ -187,7 +189,7 @@ class RectangleStroke extends Stroke {
   }
 
   @override
-  RectangleStroke copy() => RectangleStroke(
+  RectangleStroke copy() => (RectangleStroke(
     color: color,
     pressureEnabled: pressureEnabled,
     options: options.copyWith(),
@@ -195,5 +197,5 @@ class RectangleStroke extends Stroke {
     page: page,
     toolId: toolId,
     rect: rect,
-  );
+  )).withStyleOf(this);
 }

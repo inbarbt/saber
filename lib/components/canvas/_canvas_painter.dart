@@ -138,20 +138,108 @@ class CanvasPainter extends CustomPainter {
       late final shapePaint = Paint()
         ..color = paint.color
         ..style = .stroke
-        ..strokeWidth = stroke.options.size;
+        ..strokeWidth = stroke.options.size
+        ..strokeCap = .round
+        ..strokeJoin = .round;
 
       if (stroke is CircleStroke) {
-        canvas.drawCircle(stroke.center, stroke.radius, shapePaint);
-      } else if (stroke is RectangleStroke) {
-        final strokeSize = stroke.options.size;
-        canvas.drawRRect(
-          RRect.fromRectAndRadius(stroke.rect, Radius.circular(strokeSize / 4)),
+        _drawStyledOutline(
+          canvas,
+          stroke,
+          Path()..addOval(
+            Rect.fromCircle(center: stroke.center, radius: stroke.radius),
+          ),
           shapePaint,
         );
+      } else if (stroke is RectangleStroke) {
+        final strokeSize = stroke.options.size;
+        _drawStyledOutline(
+          canvas,
+          stroke,
+          Path()..addRRect(
+            RRect.fromRectAndRadius(
+              stroke.rect,
+              Radius.circular(strokeSize / 4),
+            ),
+          ),
+          shapePaint,
+        );
+      } else if (stroke.hasStyle && stroke.centerline.length >= 2) {
+        final line = stroke.centerline;
+        final closed =
+            (line.first - line.last).distance <= stroke.options.size * 2;
+        if (stroke.dashed || (stroke.fillColor != null && closed)) {
+          _drawStyledOutline(
+            canvas,
+            stroke,
+            Path()..addPolygon(line, closed),
+            shapePaint,
+            canFill: closed,
+          );
+        } else {
+          canvas.drawPath(_selectPath(stroke), paint);
+        }
+        if (stroke.arrowEnd) _drawArrowhead(canvas, stroke, line, shapePaint);
       } else {
         canvas.drawPath(_selectPath(stroke), paint);
       }
     }
+  }
+
+  /// Draws [path] for [stroke] with its fill and dash style.
+  void _drawStyledOutline(
+    Canvas canvas,
+    Stroke stroke,
+    Path path,
+    Paint outlinePaint, {
+    bool canFill = true,
+  }) {
+    final fill = stroke.fillColor;
+    if (fill != null && canFill) {
+      canvas.drawPath(path, Paint()..color = fill.withInversion(invert));
+    }
+    if (stroke.dashed) {
+      final size = max(stroke.options.size, 1.0);
+      canvas.drawPath(
+        dashPath(path, dashArray: CircularIntervalList([size * 3, size * 2.5])),
+        outlinePaint,
+      );
+    } else {
+      canvas.drawPath(path, outlinePaint);
+    }
+  }
+
+  /// Draws an arrowhead at the end of [line].
+  void _drawArrowhead(
+    Canvas canvas,
+    Stroke stroke,
+    List<Offset> line,
+    Paint paint,
+  ) {
+    final tip = line.last;
+    final reach = max(stroke.options.size * 3, 6.0);
+    // Look back far enough that the pen's wobble doesn't set the direction.
+    var from = line.first;
+    for (int i = line.length - 2; i >= 0; i--) {
+      if ((line[i] - tip).distance >= reach) {
+        from = line[i];
+        break;
+      }
+    }
+    if (from == tip) return;
+    final direction = (tip - from).direction;
+    final length = max(12.0, stroke.options.size * 4);
+    const spread = 2.6; // radians back from the direction, about 150°
+    canvas.drawLine(
+      tip,
+      tip + Offset.fromDirection(direction + spread, length),
+      paint,
+    );
+    canvas.drawLine(
+      tip,
+      tip + Offset.fromDirection(direction - spread, length),
+      paint,
+    );
   }
 
   void _drawCurrentStroke(Canvas canvas) {

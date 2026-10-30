@@ -40,6 +40,40 @@ class Stroke {
   bool pressureEnabled;
   final StrokeOptions options;
 
+  /// Drawn as a dashed line along its path.
+  var dashed = false;
+
+  /// Fill colour for closed shapes, or null for no fill.
+  Color? fillColor;
+
+  /// An arrowhead at the end of the stroke.
+  var arrowEnd = false;
+
+  bool get hasStyle => dashed || fillColor != null || arrowEnd;
+
+  /// Saved form of [dashed], [fillColor] and [arrowEnd].
+  Map<String, dynamic> get styleJson => {
+    if (dashed) 'dsh': true,
+    if (fillColor != null) 'fil': fillColor!.toARGB32(),
+    if (arrowEnd) 'arw': true,
+  };
+
+  void readStyle(Map<String, dynamic> json) {
+    dashed = json['dsh'] == true;
+    fillColor = switch (json['fil']) {
+      (final int value) => Color(value),
+      (final Int64 value) => Color(value.toInt()),
+      _ => null,
+    };
+    arrowEnd = json['arw'] == true;
+  }
+
+  /// Copies this stroke's style onto [other] and returns it.
+  T withStyleOf<T extends Stroke>(Stroke source) => this as T
+    ..dashed = source.dashed
+    ..fillColor = source.fillColor
+    ..arrowEnd = source.arrowEnd;
+
   List<Offset>? _lowQualityPolygon, _highQualityPolygon;
   List<Offset> get lowQualityPolygon =>
       _lowQualityPolygon ??= getPolygon(quality: .low);
@@ -148,27 +182,31 @@ class Stroke {
     }
 
     return Stroke(
-      color: color,
-      pressureEnabled: pressureEnabled,
-      options: options,
-      pageIndex: pageIndex,
-      page: page,
-      toolId: toolId,
-    )..points.addAll(points);
+        color: color,
+        pressureEnabled: pressureEnabled,
+        options: options,
+        pageIndex: pageIndex,
+        page: page,
+        toolId: toolId,
+      )
+      ..points.addAll(points)
+      ..readStyle(json);
   }
   Map<String, dynamic> toJson() {
     // these json keys should not be the same as the ones in [StrokeOptions.toJson]
     return {
-      'shape': null,
-      'p': points
-          .where((point) => point.isFinite)
-          .map((PointVector point) => point.toBsonBinary())
-          .toList(),
-      'i': pageIndex,
-      'ty': toolId.id,
-      'pe': pressureEnabled,
-      'c': color.toARGB32(),
-    }..addAll(options.toJson());
+        'shape': null,
+        'p': points
+            .where((point) => point.isFinite)
+            .map((PointVector point) => point.toBsonBinary())
+            .toList(),
+        'i': pageIndex,
+        'ty': toolId.id,
+        'pe': pressureEnabled,
+        'c': color.toARGB32(),
+      }
+      ..addAll(options.toJson())
+      ..addAll(styleJson);
   }
 
   void addPoint(Offset point, [double? pressure]) {
@@ -413,14 +451,14 @@ class Stroke {
     }
   }
 
-  Stroke copy() => Stroke(
+  Stroke copy() => (Stroke(
     color: color,
     pressureEnabled: pressureEnabled,
     options: options.copyWith(),
     pageIndex: pageIndex,
     page: page,
     toolId: toolId,
-  )..points.addAll(points);
+  )..points.addAll(points)).withStyleOf(this);
 
   /// A copy of this stroke with [m] applied to every point.
   /// The thickness scales with the overall size change.
@@ -497,14 +535,18 @@ class Stroke {
     ];
   }
 
-  Stroke _pieceWith(List<PointVector> piecePoints) => Stroke(
-    color: color,
-    pressureEnabled: pressureEnabled,
-    options: options.copyWith(isComplete: true),
-    pageIndex: pageIndex,
-    page: page,
-    toolId: toolId,
-  )..points.addAll(piecePoints);
+  // A piece is an open line: it keeps dashes but not fill or arrowhead.
+  Stroke _pieceWith(List<PointVector> piecePoints) =>
+      Stroke(
+          color: color,
+          pressureEnabled: pressureEnabled,
+          options: options.copyWith(isComplete: true),
+          pageIndex: pageIndex,
+          page: page,
+          toolId: toolId,
+        )
+        ..points.addAll(piecePoints)
+        ..dashed = dashed;
 
   /// A plain stroke through [corners] after applying [m],
   /// keeping this stroke's look. Used for shapes that can no longer be
@@ -528,7 +570,7 @@ class Stroke {
       for (final corner in corners) MatrixUtils.transformPoint(m, corner),
     ]);
     result.options.isComplete = true;
-    return result;
+    return result.withStyleOf(this);
   }
 }
 

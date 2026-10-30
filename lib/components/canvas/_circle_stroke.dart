@@ -57,19 +57,21 @@ class CircleStroke extends Stroke {
       toolId: .parsePenType(json['ty'], fallback: .shapePen),
       center: Offset(json['cx'] ?? 0, json['cy'] ?? 0),
       radius: json['r'] ?? 0,
-    );
+    )..readStyle(json);
   }
   @override
   Map<String, dynamic> toJson() {
     return {
-      'shape': 'circle',
-      'i': pageIndex,
-      'cx': center.dx,
-      'cy': center.dy,
-      'r': radius,
-      'pe': pressureEnabled,
-      'c': color.toARGB32(),
-    }..addAll(options.toJson());
+        'shape': 'circle',
+        'i': pageIndex,
+        'cx': center.dx,
+        'cy': center.dy,
+        'r': radius,
+        'pe': pressureEnabled,
+        'c': color.toARGB32(),
+      }
+      ..addAll(options.toJson())
+      ..addAll(styleJson);
   }
 
   @override
@@ -175,7 +177,7 @@ class CircleStroke extends Stroke {
   }
 
   @override
-  CircleStroke copy() => CircleStroke(
+  CircleStroke copy() => (CircleStroke(
     color: color,
     pressureEnabled: pressureEnabled,
     options: options.copyWith(),
@@ -184,5 +186,5 @@ class CircleStroke extends Stroke {
     toolId: toolId,
     center: center,
     radius: radius,
-  );
+  )).withStyleOf(this);
 }

@@ -309,6 +309,7 @@ class Translations$editor$en {
 	late final Translations$editor$penOptions$en penOptions = Translations$editor$penOptions$en.internal(_root);
 	late final Translations$editor$colors$en colors = Translations$editor$colors$en.internal(_root);
 	late final Translations$editor$imageOptions$en imageOptions = Translations$editor$imageOptions$en.internal(_root);
+	late final Translations$editor$shapeStyle$en shapeStyle = Translations$editor$shapeStyle$en.internal(_root);
 	late final Translations$editor$penFeel$en penFeel = Translations$editor$penFeel$en.internal(_root);
 	late final Translations$editor$eraserBar$en eraserBar = Translations$editor$eraserBar$en.internal(_root);
 	late final Translations$editor$selectionBar$en selectionBar = Translations$editor$selectionBar$en.internal(_root);
@@ -1261,6 +1262,27 @@ class Translations$editor$imageOptions$en {
 
 	/// en: 'Delete'
 	String get delete => 'Delete';
+}
+
+// Path: editor.shapeStyle
+class Translations$editor$shapeStyle$en {
+	Translations$editor$shapeStyle$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Style'
+	String get title => 'Style';
+
+	/// en: 'Dashed line'
+	String get dashed => 'Dashed line';
+
+	/// en: 'Fill'
+	String get fill => 'Fill';
+
+	/// en: 'Arrowhead'
+	String get arrow => 'Arrowhead';
 }
 
 // Path: editor.penFeel

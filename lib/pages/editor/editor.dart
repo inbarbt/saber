@@ -461,6 +461,13 @@ class EditorState extends State<Editor> {
         }
         removeExcessPages();
 
+      case (final HistoricStyleChange historic):
+        for (final MapEntry(key: stroke, value: change)
+            in historic.styleChanges.entries) {
+          _applyStyle(stroke, change.previous);
+        }
+        coreInfo.pages[historic.pageIndex].redrawStrokes();
+
       case (final HistoricSizeChange historic):
         for (final entry in historic.sizeChanges.entries) {
           entry.key.options.size = entry.value.previous;
@@ -1686,6 +1693,66 @@ class EditorState extends State<Editor> {
     }
   }
 
+  static StrokeStyle _styleOf(Stroke stroke) =>
+      (dashed: stroke.dashed, fill: stroke.fillColor, arrow: stroke.arrowEnd);
+
+  static void _applyStyle(Stroke stroke, StrokeStyle style) {
+    stroke
+      ..dashed = style.dashed
+      ..fillColor = style.fill
+      ..arrowEnd = style.arrow;
+  }
+
+  /// Which styles every selected stroke has, or null with no selection.
+  ({bool dashed, bool filled, bool arrow})? get selectionStyle {
+    final tool = currentTool;
+    if (tool is! Select || !tool.doneSelecting) return null;
+    final strokes = tool.selectResult.strokes;
+    if (strokes.isEmpty) return null;
+    return (
+      dashed: strokes.every((s) => s.dashed),
+      filled: strokes.every((s) => s.fillColor != null),
+      arrow: strokes.every((s) => s.arrowEnd),
+    );
+  }
+
+  /// Turns dashes, fill or arrowhead on or off for the whole selection.
+  /// Fill uses each stroke's own colour, see on the page.
+  void setSelectionStyle({bool? dashed, bool? filled, bool? arrow}) {
+    final select = currentTool as Select;
+    if (!select.doneSelecting) return;
+    final strokes = select.selectResult.strokes;
+    if (strokes.isEmpty) return;
+
+    setState(() {
+      final changes = <Stroke, Change<StrokeStyle>>{};
+      for (final stroke in strokes) {
+        final before = _styleOf(stroke);
+        final StrokeStyle after = (
+          dashed: dashed ?? before.dashed,
+          fill: switch (filled) {
+            null => before.fill,
+            true => before.fill ?? stroke.color.withAlpha(ShapePen.fillAlpha),
+            false => null,
+          },
+          arrow: arrow ?? before.arrow,
+        );
+        if (after == before) continue;
+        changes[stroke] = Change(previous: before, current: after);
+        _applyStyle(stroke, after);
+      }
+      if (changes.isEmpty) return;
+      history.recordChange(
+        HistoricStyleChange(
+          pageIndex: select.selectResult.pageIndex,
+          styleChanges: changes,
+        ),
+      );
+      coreInfo.pages[select.selectResult.pageIndex].redrawStrokes();
+      autosaveAfterDelay();
+    });
+  }
+
   /// Sets the thickness of every selected stroke to [size].
   void setSelectionSize(double size) {
     final select = currentTool as Select;
@@ -2016,6 +2083,8 @@ class EditorState extends State<Editor> {
           currentTool: currentTool,
           copySelection: copySelection,
           getSelectionSize: () => selectionSize,
+          getSelectionStyle: () => selectionStyle,
+          setSelectionStyle: setSelectionStyle,
           setSelectionSize: setSelectionSize,
           cutSelection: cutSelection,
           pasteSelection: StrokeClipboard.isNotEmpty

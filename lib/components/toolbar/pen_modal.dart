@@ -82,6 +82,33 @@ class _PenModalState<T extends Pen> extends State<PenModal<T>> {
           ),
         ],
 
+        if (pen is ShapePen) ...[
+          _StyleToggle(
+            value: stows.shapeDashed.value,
+            onPressed: () => setState(
+              () => stows.shapeDashed.value = !stows.shapeDashed.value,
+            ),
+            tooltip: t.editor.shapeStyle.dashed,
+            icon: Icons.line_style,
+          ),
+          _StyleToggle(
+            value: stows.shapeFilled.value,
+            onPressed: () => setState(
+              () => stows.shapeFilled.value = !stows.shapeFilled.value,
+            ),
+            tooltip: t.editor.shapeStyle.fill,
+            icon: Icons.format_color_fill,
+          ),
+          _StyleToggle(
+            value: stows.shapeArrow.value,
+            onPressed: () => setState(
+              () => stows.shapeArrow.value = !stows.shapeArrow.value,
+            ),
+            tooltip: t.editor.shapeStyle.arrow,
+            icon: Icons.arrow_right_alt,
+          ),
+        ],
+
         if (pen is! Highlighter && pen is! ShapePen)
           IconButton(
             onPressed: () => _showPenFeelSettings(context, pen),
@@ -173,6 +200,31 @@ class const _PenSelector({
       ),
       tooltip: tooltip,
       icon: icon,
+    );
+  }
+}
+
+class const _StyleToggle({
+  required final bool value,
+  required final VoidCallback onPressed,
+  required final String tooltip,
+  required final IconData icon,
+}) extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = ColorScheme.of(context);
+    return IconButton(
+      onPressed: onPressed,
+      isSelected: value,
+      tooltip: tooltip,
+      style: IconButton.styleFrom(
+        foregroundColor: value ? colorScheme.secondary : colorScheme.onSurface,
+        backgroundColor: value
+            ? colorScheme.secondary.withValues(alpha: 0.1)
+            : Colors.transparent,
+        shape: const CircleBorder(),
+      ),
+      icon: Icon(icon),
     );
   }
 }

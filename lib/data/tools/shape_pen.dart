@@ -71,8 +71,26 @@ class ShapePen extends Pen {
     final detectedShape = ShapePen.detectedShape;
     ShapePen.detectedShape = null;
 
-    if (detectedShape == null) return rawStroke;
-    return strokeToShape(rawStroke, detectedShape);
+    final result = detectedShape == null
+        ? rawStroke
+        : strokeToShape(rawStroke, detectedShape);
+    return applyShapeStyle(
+      result,
+      isLine: detectedShape?.name == DefaultUnistrokeNames.line,
+    );
+  }
+
+  /// How translucent a shape's fill is (0 to 255).
+  static const fillAlpha = 0x40;
+
+  /// Applies the shape pen's style settings to a new [shape].
+  static Stroke applyShapeStyle(Stroke shape, {required bool isLine}) {
+    shape.dashed = stows.shapeDashed.value;
+    if (stows.shapeFilled.value && !isLine) {
+      shape.fillColor = shape.color.withAlpha(fillAlpha);
+    }
+    if (stows.shapeArrow.value && isLine) shape.arrowEnd = true;
+    return shape;
   }
 
   /// Replaces a hand-drawn [rawStroke] with the shape it was recognised as.

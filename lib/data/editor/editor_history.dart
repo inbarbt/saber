@@ -278,6 +278,23 @@ class const HistoricReplace({
   HistoricReplace reverse() => .new(removed: added, added: removed);
 }
 
+/// The look of a stroke beyond its colour and thickness.
+typedef StrokeStyle = ({bool dashed, Color? fill, bool arrow});
+
+/// Some strokes' styles (dashes, fill, arrowhead) were changed.
+class const HistoricStyleChange({
+  required final int pageIndex,
+  required final Map<Stroke, Change<StrokeStyle>> styleChanges,
+}) extends Historic {
+  @override
+  HistoricStyleChange reverse() => .new(
+    pageIndex: pageIndex,
+    styleChanges: styleChanges.map(
+      (key, value) => MapEntry(key, value.reverse()),
+    ),
+  );
+}
+
 /// Some strokes' thicknesses were changed.
 class const HistoricSizeChange({
   required final int pageIndex,

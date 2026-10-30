@@ -192,6 +192,21 @@ class Stows {
     true,
     volatile: !_isOnMainIsolate,
   );
+  final shapeDashed = PlainStow(
+    'shapeDashed',
+    false,
+    volatile: !_isOnMainIsolate,
+  );
+  final shapeFilled = PlainStow(
+    'shapeFilled',
+    false,
+    volatile: !_isOnMainIsolate,
+  );
+  final shapeArrow = PlainStow(
+    'shapeArrow',
+    false,
+    volatile: !_isOnMainIsolate,
+  );
   final holdToDrawShape = PlainStow(
     'holdToDrawShape',
     true,
