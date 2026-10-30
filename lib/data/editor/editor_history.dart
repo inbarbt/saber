@@ -268,6 +268,20 @@ class const HistoricColorChange({
   );
 }
 
+/// Some strokes' thicknesses were changed.
+class const HistoricSizeChange({
+  required final int pageIndex,
+  required final Map<Stroke, Change<double>> sizeChanges,
+}) extends Historic {
+  @override
+  HistoricSizeChange reverse() => .new(
+    pageIndex: pageIndex,
+    sizeChanges: sizeChanges.map(
+      (key, value) => MapEntry(key, value.reverse()),
+    ),
+  );
+}
+
 /// A page's background pattern was changed.
 class const HistoricBackgroundPatternChange({
   required final int pageIndex,

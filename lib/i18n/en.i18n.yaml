@@ -336,6 +336,7 @@ editor:
     copy: Copy
     cut: Cut
     paste: Paste
+    thickness: Thickness
   menu:
     clearPage: Clear page $page/$totalPages
     clearAllPages: Clear all pages

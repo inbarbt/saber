@@ -451,6 +451,13 @@ class EditorState extends State<Editor> {
           entry.key.color = entry.value.previous;
         }
 
+      case (final HistoricSizeChange historic):
+        for (final entry in historic.sizeChanges.entries) {
+          entry.key.options.size = entry.value.previous;
+          entry.key.markPolygonNeedsUpdating();
+        }
+        coreInfo.pages[historic.pageIndex].redrawStrokes();
+
       case (final HistoricBackgroundPatternChange historic):
         coreInfo.backgroundPattern = historic.change.previous;
 
@@ -1653,6 +1660,53 @@ class EditorState extends State<Editor> {
     return true;
   }
 
+  /// Sets the thickness of every selected stroke to [size].
+  void setSelectionSize(double size) {
+    final select = currentTool as Select;
+    if (!select.doneSelecting) return;
+    final strokes = select.selectResult.strokes;
+    if (strokes.isEmpty) return;
+
+    setState(() {
+      final sizeChanges = <Stroke, Change<double>>{};
+      for (final stroke in strokes) {
+        if (stroke.options.size == size) continue;
+        sizeChanges[stroke] = Change(
+          previous: stroke.options.size,
+          current: size,
+        );
+        stroke.options.size = size;
+        stroke.markPolygonNeedsUpdating();
+      }
+      if (sizeChanges.isEmpty) return;
+      history.recordChange(
+        HistoricSizeChange(
+          pageIndex: select.selectResult.pageIndex,
+          sizeChanges: sizeChanges,
+        ),
+      );
+      coreInfo.pages[select.selectResult.pageIndex].redrawStrokes();
+      autosaveAfterDelay();
+    });
+  }
+
+  /// The thickness most of the selection has, for the thickness picker.
+  double? get selectionSize {
+    final tool = currentTool;
+    if (tool is! Select || !tool.doneSelecting) return null;
+    final strokes = tool.selectResult.strokes;
+    if (strokes.isEmpty) return null;
+    final counts = <double, int>{};
+    for (final stroke in strokes) {
+      counts.update(
+        stroke.options.size,
+        (n) => n + stroke.length,
+        ifAbsent: () => stroke.length,
+      );
+    }
+    return counts.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
+  }
+
   /// Copies the current selection to Saber+'s own clipboard.
   void copySelection() {
     final select = currentTool as Select;
@@ -1935,6 +1989,8 @@ class EditorState extends State<Editor> {
           },
           currentTool: currentTool,
           copySelection: copySelection,
+          getSelectionSize: () => selectionSize,
+          setSelectionSize: setSelectionSize,
           cutSelection: cutSelection,
           pasteSelection: StrokeClipboard.isNotEmpty
               ? pasteFromStrokeClipboard
@@ -2017,7 +2073,8 @@ class EditorState extends State<Editor> {
               } else if (currentTool is Select) {
                 // Changes color of selected strokes
                 final select = currentTool as Select;
-                if (select.doneSelecting) {
+                if (select.doneSelecting &&
+                    select.selectResult.strokes.isNotEmpty) {
                   final strokes = select.selectResult.strokes;
 
                   final colorChanges = <Stroke, Change<Color>>{};

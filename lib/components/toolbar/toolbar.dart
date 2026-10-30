@@ -51,6 +51,8 @@ class Toolbar extends StatefulWidget {
     this.copySelection,
     this.cutSelection,
     this.pasteSelection,
+    this.getSelectionSize,
+    this.setSelectionSize,
     required this.exportAsSba,
     required this.exportAsPdf,
     required this.exportAsPng,
@@ -82,6 +84,8 @@ class Toolbar extends StatefulWidget {
   final VoidCallback? copySelection;
   final VoidCallback? cutSelection;
   final VoidCallback? pasteSelection;
+  final double? Function()? getSelectionSize;
+  final ValueChanged<double>? setSelectionSize;
 
   final Future Function(BuildContext)? exportAsSba;
   final Future Function(BuildContext)? exportAsPdf;
@@ -255,6 +259,8 @@ class _ToolbarState extends State<Toolbar> {
                 copySelection: widget.copySelection,
                 cutSelection: widget.cutSelection,
                 pasteSelection: widget.pasteSelection,
+                getSelectionSize: widget.getSelectionSize,
+                setSelectionSize: widget.setSelectionSize,
               ),
             },
           );

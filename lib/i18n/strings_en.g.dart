@@ -1286,6 +1286,9 @@ class Translations$editor$selectionBar$en {
 
 	/// en: 'Paste'
 	String get paste => 'Paste';
+
+	/// en: 'Thickness'
+	String get thickness => 'Thickness';
 }
 
 // Path: editor.menu

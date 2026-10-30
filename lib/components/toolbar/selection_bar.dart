@@ -13,6 +13,10 @@ class SelectionBar extends StatelessWidget {
   /// Null hides the paste button (nothing to paste).
   final VoidCallback? pasteSelection;
 
+  /// The selection's current thickness, or null if nothing is selected.
+  final double? Function()? getSelectionSize;
+  final ValueChanged<double>? setSelectionSize;
+
   const new({
     super.key,
     required this.duplicateSelection,
@@ -20,7 +24,46 @@ class SelectionBar extends StatelessWidget {
     this.copySelection,
     this.cutSelection,
     this.pasteSelection,
+    this.getSelectionSize,
+    this.setSelectionSize,
   });
+
+  /// Thicknesses offered by the picker.
+  static const minThickness = 1.0;
+  static const maxThickness = 25.0;
+
+  void _showThicknessPicker(BuildContext context) {
+    final initial = getSelectionSize!();
+    if (initial == null) return;
+    var value = initial.clamp(minThickness, maxThickness);
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const .all(16),
+          child: StatefulBuilder(
+            builder: (context, setState) => Column(
+              mainAxisSize: .min,
+              children: [
+                Text(
+                  '${t.editor.selectionBar.thickness}: ${value.toStringAsFixed(1)}',
+                ),
+                Slider(
+                  value: value,
+                  min: minThickness,
+                  max: maxThickness,
+                  divisions: ((maxThickness - minThickness) * 2).round(),
+                  onChanged: (v) => setState(() => value = v),
+                  // Apply once when the finger lifts, so undo is one step.
+                  onChangeEnd: setSelectionSize,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -44,6 +87,12 @@ class SelectionBar extends StatelessWidget {
             onPressed: pasteSelection!,
             tooltip: t.editor.selectionBar.paste,
             icon: Icons.content_paste,
+          ),
+        if (getSelectionSize != null && setSelectionSize != null)
+          _SelectionBarButton(
+            onPressed: () => _showThicknessPicker(context),
+            tooltip: t.editor.selectionBar.thickness,
+            icon: Icons.line_weight,
           ),
         IconButton(
           onPressed: duplicateSelection,
