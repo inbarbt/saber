@@ -150,7 +150,7 @@ class EditorState extends State<Editor> {
       case .pencil:
         return Pencil.currentPencil;
       case .eraser:
-        return Eraser();
+        return Eraser.fromPrefs();
       case .select:
         return Select.currentSelect;
       case .textEditing:
@@ -450,6 +450,16 @@ class EditorState extends State<Editor> {
         for (final entry in historic.colorChanges.entries) {
           entry.key.color = entry.value.previous;
         }
+
+      case (final HistoricReplace historic):
+        for (final stroke in historic.added) {
+          coreInfo.pages[stroke.pageIndex].strokes.remove(stroke);
+        }
+        for (final stroke in historic.removed) {
+          createPage(stroke.pageIndex);
+          coreInfo.pages[stroke.pageIndex].insertStroke(stroke);
+        }
+        removeExcessPages();
 
       case (final HistoricSizeChange historic):
         for (final entry in historic.sizeChanges.entries) {
@@ -826,12 +836,7 @@ class EditorState extends State<Editor> {
         );
       }
     } else if (currentTool is Eraser) {
-      for (final stroke in (currentTool as Eraser).checkForOverlappingStrokes(
-        position,
-        page.strokes,
-      )) {
-        page.strokes.remove(stroke);
-      }
+      _erase(currentTool as Eraser, page, position);
       removeExcessPages();
     } else if (currentTool is Select) {
       final select = currentTool as Select;
@@ -889,12 +894,7 @@ class EditorState extends State<Editor> {
       }
       page.redrawStrokes();
     } else if (currentTool is Eraser) {
-      for (final stroke in (currentTool as Eraser).checkForOverlappingStrokes(
-        position,
-        page.strokes,
-      )) {
-        page.strokes.remove(stroke);
-      }
+      _erase(currentTool as Eraser, page, position);
       page.redrawStrokes();
       removeExcessPages();
     } else if (currentTool is Select && _transformHandle != null) {
@@ -1078,11 +1078,16 @@ class EditorState extends State<Editor> {
         page.insertStroke(newStroke);
         history.recordChange(HistoricAdd(strokes: [newStroke], images: []));
       } else if (currentTool is Eraser) {
-        final erased = (currentTool as Eraser).onDragEnd();
+        final eraser = currentTool as Eraser;
+        final erased = eraser.onDragEnd();
+        final (:removed, :added) = eraser.onPartialDragEnd();
         if (stylusButtonWasPressed || stows.disableEraserAfterUse.value) {
           // restore previous tool
           stylusButtonWasPressed = false;
           currentTool = _lastNonEraserTool;
+        }
+        if (removed.isNotEmpty) {
+          history.recordChange(HistoricReplace(removed: removed, added: added));
         }
         if (erased.isEmpty) return;
         history.recordChange(HistoricDelete(strokes: erased, images: []));
@@ -1158,7 +1163,7 @@ class EditorState extends State<Editor> {
     if (buttonIsPressed) {
       // button pressed while hovering, switch to Eraser
       if (currentTool is! Eraser) {
-        currentTool = Eraser();
+        currentTool = Eraser.fromPrefs();
       }
     } else {
       // button was released while hovering, switch back to non-Eraser
@@ -1658,6 +1663,27 @@ class EditorState extends State<Editor> {
     autosaveAfterDelay();
 
     return true;
+  }
+
+  /// Erases at [position]: whole strokes, or only the part under the
+  /// eraser when partial erasing is on.
+  void _erase(Eraser eraser, EditorPage page, Offset position) {
+    if (!eraser.partial) {
+      for (final stroke in eraser.checkForOverlappingStrokes(
+        position,
+        page.strokes,
+      )) {
+        page.strokes.remove(stroke);
+      }
+      return;
+    }
+    final replacements = eraser.erasePartially(position, List.of(page.strokes));
+    for (final MapEntry(key: stroke, value: pieces) in replacements.entries) {
+      page.strokes.remove(stroke);
+      for (final piece in pieces) {
+        page.insertStroke(piece);
+      }
+    }
   }
 
   /// Sets the thickness of every selected stroke to [size].

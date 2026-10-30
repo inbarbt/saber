@@ -268,6 +268,16 @@ class const HistoricColorChange({
   );
 }
 
+/// Some strokes were replaced by others, e.g. cut into pieces by the
+/// eraser. [removed] left the page and [added] took their place.
+class const HistoricReplace({
+  required final List<Stroke> removed,
+  required final List<Stroke> added,
+}) extends Historic {
+  @override
+  HistoricReplace reverse() => .new(removed: added, added: removed);
+}
+
 /// Some strokes' thicknesses were changed.
 class const HistoricSizeChange({
   required final int pageIndex,

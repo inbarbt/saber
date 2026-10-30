@@ -171,6 +171,27 @@ class Stows {
     true,
     volatile: !_isOnMainIsolate,
   );
+  final eraserSize = PlainStow('eraserSize', 10, volatile: !_isOnMainIsolate);
+  final eraserPartial = PlainStow(
+    'eraserPartial',
+    false,
+    volatile: !_isOnMainIsolate,
+  );
+  final eraserErasesPen = PlainStow(
+    'eraserErasesPen',
+    true,
+    volatile: !_isOnMainIsolate,
+  );
+  final eraserErasesHighlighter = PlainStow(
+    'eraserErasesHighlighter',
+    true,
+    volatile: !_isOnMainIsolate,
+  );
+  final eraserErasesShapes = PlainStow(
+    'eraserErasesShapes',
+    true,
+    volatile: !_isOnMainIsolate,
+  );
   final holdToDrawShape = PlainStow(
     'holdToDrawShape',
     true,

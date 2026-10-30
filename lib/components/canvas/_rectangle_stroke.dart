@@ -157,6 +157,18 @@ class RectangleStroke extends Stroke {
   bool isStraightLine([int minLength = 0]) => false;
 
   @override
+  List<PointVector> get erasablePoints => [
+    for (final corner in [
+      rect.topLeft,
+      rect.topRight,
+      rect.bottomRight,
+      rect.bottomLeft,
+      rect.topLeft,
+    ])
+      PointVector(corner.dx, corner.dy),
+  ];
+
+  @override
   Stroke transformed(Matrix4 m) {
     if (SelectionTransform.isAxisAligned(m)) {
       return copy()

@@ -309,6 +309,7 @@ class Translations$editor$en {
 	late final Translations$editor$penOptions$en penOptions = Translations$editor$penOptions$en.internal(_root);
 	late final Translations$editor$colors$en colors = Translations$editor$colors$en.internal(_root);
 	late final Translations$editor$imageOptions$en imageOptions = Translations$editor$imageOptions$en.internal(_root);
+	late final Translations$editor$eraserBar$en eraserBar = Translations$editor$eraserBar$en.internal(_root);
 	late final Translations$editor$selectionBar$en selectionBar = Translations$editor$selectionBar$en.internal(_root);
 	late final Translations$editor$menu$en menu = Translations$editor$menu$en.internal(_root);
 	late final Translations$editor$photoPdfError$en photoPdfError = Translations$editor$photoPdfError$en.internal(_root);
@@ -1259,6 +1260,33 @@ class Translations$editor$imageOptions$en {
 
 	/// en: 'Delete'
 	String get delete => 'Delete';
+}
+
+// Path: editor.eraserBar
+class Translations$editor$eraserBar$en {
+	Translations$editor$eraserBar$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Erase whole strokes'
+	String get wholeStroke => 'Erase whole strokes';
+
+	/// en: 'Erase only under the eraser'
+	String get partial => 'Erase only under the eraser';
+
+	/// en: 'Eraser size'
+	String get size => 'Eraser size';
+
+	/// en: 'Erase pen'
+	String get erasesPen => 'Erase pen';
+
+	/// en: 'Erase highlighter'
+	String get erasesHighlighter => 'Erase highlighter';
+
+	/// en: 'Erase shapes'
+	String get erasesShapes => 'Erase shapes';
 }
 
 // Path: editor.selectionBar

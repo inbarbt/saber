@@ -12,6 +12,7 @@ import 'package:saber/components/theming/adaptive_icon.dart';
 import 'package:saber/components/theming/dynamic_material_app.dart';
 import 'package:saber/components/theming/uni_icon.dart';
 import 'package:saber/components/toolbar/color_bar.dart';
+import 'package:saber/components/toolbar/eraser_bar.dart';
 import 'package:saber/components/toolbar/export_bar.dart';
 import 'package:saber/components/toolbar/pen_modal.dart';
 import 'package:saber/components/toolbar/selection_bar.dart';
@@ -163,7 +164,7 @@ class _ToolbarState extends State<Toolbar> {
 
   void toggleEraser() {
     toolOptionsType.value = .hide;
-    widget.setTool(Eraser()); // this toggles eraser
+    widget.setTool(Eraser.fromPrefs()); // this toggles eraser
   }
 
   void toggleColorOptions() {
@@ -207,6 +208,10 @@ class _ToolbarState extends State<Toolbar> {
       toolOptionsType.value = Select.currentSelect.doneSelecting
           ? .select
           : .hide;
+    } else if (widget.currentTool is Eraser) {
+      toolOptionsType.value = .eraser;
+    } else if (toolOptionsType.value == .eraser) {
+      toolOptionsType.value = .hide;
     }
 
     final bars = <Widget>[
@@ -252,6 +257,12 @@ class _ToolbarState extends State<Toolbar> {
               .pencil => PenModal(
                 getTool: () => Pencil.currentPencil,
                 setTool: widget.setTool,
+              ),
+              .eraser => EraserBar(
+                getEraser: () => switch (widget.currentTool) {
+                  final Eraser eraser => eraser,
+                  _ => null,
+                },
               ),
               .select => SelectionBar(
                 duplicateSelection: widget.duplicateSelection,
@@ -595,4 +606,4 @@ class _ToolbarState extends State<Toolbar> {
   }
 }
 
-enum ToolOptions { hide, pen, highlighter, pencil, select }
+enum ToolOptions { hide, pen, highlighter, pencil, select, eraser }

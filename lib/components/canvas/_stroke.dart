@@ -439,6 +439,73 @@ class Stroke {
     return result;
   }
 
+  /// The points along this stroke for erasing part of it.
+  /// Shapes return their outline.
+  List<PointVector> get erasablePoints => points;
+
+  /// Erases the part of this stroke within [radius] of [center]
+  /// (plus half the stroke's thickness).
+  ///
+  /// Returns null if nothing was erased. Otherwise returns the pieces that
+  /// are left, as new strokes: empty if the whole stroke was erased.
+  List<Stroke>? eraseAround(Offset center, double radius) {
+    final reach = radius + options.size / 2;
+    final reachSquared = reach * reach;
+
+    // Fill in long gaps so the eraser can't slip between two points.
+    final step = max(1.0, radius / 3);
+    final dense = <PointVector>[];
+    final source = erasablePoints;
+    for (int i = 0; i < source.length; i++) {
+      final point = source[i];
+      if (i > 0) {
+        final prev = source[i - 1];
+        final gap = (point - prev).distance;
+        final extra = (gap / step).floor();
+        for (int k = 1; k <= extra; k++) {
+          final t = k / (extra + 1);
+          dense.add(
+            PointVector(
+              prev.x + (point.x - prev.x) * t,
+              prev.y + (point.y - prev.y) * t,
+              point.pressure,
+            ),
+          );
+        }
+      }
+      dense.add(point);
+    }
+
+    var touched = false;
+    final pieces = <List<PointVector>>[];
+    var current = <PointVector>[];
+    for (final point in dense) {
+      if ((point - center).distanceSquared <= reachSquared) {
+        touched = true;
+        if (current.isNotEmpty) pieces.add(current);
+        current = <PointVector>[];
+      } else {
+        current.add(point);
+      }
+    }
+    if (current.isNotEmpty) pieces.add(current);
+    if (!touched) return null;
+
+    return [
+      for (final piece in pieces)
+        if (piece.length >= 2) _pieceWith(piece),
+    ];
+  }
+
+  Stroke _pieceWith(List<PointVector> piecePoints) => Stroke(
+    color: color,
+    pressureEnabled: pressureEnabled,
+    options: options.copyWith(isComplete: true),
+    pageIndex: pageIndex,
+    page: page,
+    toolId: toolId,
+  )..points.addAll(piecePoints);
+
   /// A plain stroke through [corners] after applying [m],
   /// keeping this stroke's look. Used for shapes that can no longer be
   /// described by their own class, e.g. a rotated rectangle.

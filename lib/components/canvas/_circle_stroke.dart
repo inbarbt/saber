@@ -142,6 +142,14 @@ class CircleStroke extends Stroke {
   bool isStraightLine([int minLength = 0]) => false;
 
   @override
+  List<PointVector> get erasablePoints => [
+    for (int i = 0; i <= 64; ++i)
+      PointVector.fromOffset(
+        offset: center + Offset.fromDirection(2 * pi * i / 64, radius),
+      ),
+  ];
+
+  @override
   Stroke transformed(Matrix4 m) {
     // How much each axis is stretched
     final sx = sqrt(
