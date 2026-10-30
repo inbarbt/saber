@@ -36,6 +36,7 @@ import 'package:saber/data/editor/editor_core_info.dart';
 import 'package:saber/data/editor/editor_exporter.dart';
 import 'package:saber/data/editor/editor_history.dart';
 import 'package:saber/data/editor/page.dart';
+import 'package:saber/data/editor/stroke_clipboard.dart';
 import 'package:saber/data/extensions/change_notifier_extensions.dart';
 import 'package:saber/data/extensions/matrix4_extensions.dart';
 import 'package:saber/data/file_manager/file_manager.dart';
@@ -1652,7 +1653,94 @@ class EditorState extends State<Editor> {
     return true;
   }
 
+  /// Copies the current selection to Saber+'s own clipboard.
+  void copySelection() {
+    final select = currentTool as Select;
+    if (!select.doneSelecting || select.selectResult.isEmpty) return;
+    StrokeClipboard.copy(
+      strokes: select.selectResult.strokes,
+      images: select.selectResult.images,
+      filePath: coreInfo.filePath,
+      pageIndex: select.selectResult.pageIndex,
+    );
+    setState(() {}); // shows the paste button
+  }
+
+  /// Copies the current selection, then deletes it.
+  void cutSelection() {
+    final select = currentTool as Select;
+    if (!select.doneSelecting || select.selectResult.isEmpty) return;
+    copySelection();
+    setState(() {
+      final page = coreInfo.pages[select.selectResult.pageIndex];
+      final strokes = select.selectResult.strokes;
+      final images = select.selectResult.images;
+      for (final stroke in strokes) {
+        page.strokes.remove(stroke);
+      }
+      for (final image in images) {
+        page.images.remove(image);
+      }
+      select.unselect();
+      history.recordChange(HistoricDelete(strokes: strokes, images: images));
+      autosaveAfterDelay();
+    });
+  }
+
+  /// Pastes Saber+'s clipboard onto the page in view, and selects it
+  /// so it can be dragged into place.
+  void pasteFromStrokeClipboard() {
+    if (StrokeClipboard.isEmpty || coreInfo.readOnly) return;
+    final pageIndex = currentPageIndex;
+    createPage(pageIndex);
+    final page = coreInfo.pages[pageIndex];
+    final offset = StrokeClipboard.pasteOffset(
+      filePath: coreInfo.filePath,
+      pageIndex: pageIndex,
+    );
+    final strokes = StrokeClipboard.strokesFor(
+      pageIndex: pageIndex,
+      page: page,
+      offset: offset,
+    );
+    final images = StrokeClipboard.imagesFor(
+      filePath: coreInfo.filePath,
+      pageIndex: pageIndex,
+      nextImageId: () => coreInfo.nextImageId++,
+      offset: offset,
+    );
+    if (strokes.isEmpty && images.isEmpty) return;
+
+    setState(() {
+      for (final stroke in strokes) {
+        page.insertStroke(stroke);
+      }
+      page.images.addAll(images);
+      history.recordChange(HistoricAdd(strokes: strokes, images: images));
+
+      final box = SelectionTransform.contentBox(strokes, images);
+      final select = Select.currentSelect;
+      select.selectResult = SelectResult(
+        pageIndex: pageIndex,
+        strokes: List.of(strokes),
+        images: List.of(images),
+        path: Path()..addRect(box?.local ?? Rect.zero),
+        pageIndexStart: pageIndex,
+      );
+      select.doneSelecting = true;
+      if (currentTool is! Select) {
+        // Touching outside the pasted content goes back to this tool.
+        _toolBeforeCircleLasso = currentTool;
+        currentTool = select;
+      }
+      page.redrawStrokes();
+      autosaveAfterDelay();
+    });
+  }
+
   Future paste() async {
+    if (StrokeClipboard.isNotEmpty) return pasteFromStrokeClipboard();
+
     /// Maps image formats to their file extension.
     const Map<SimpleFileFormat, String> formats = {
       Formats.jpeg: '.jpeg',
@@ -1846,6 +1934,11 @@ class EditorState extends State<Editor> {
             if (mounted) setState(() {});
           },
           currentTool: currentTool,
+          copySelection: copySelection,
+          cutSelection: cutSelection,
+          pasteSelection: StrokeClipboard.isNotEmpty
+              ? pasteFromStrokeClipboard
+              : null,
           duplicateSelection: () {
             final select = currentTool as Select;
             if (!select.doneSelecting) return;

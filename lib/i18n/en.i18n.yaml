@@ -333,6 +333,9 @@ editor:
     delete: Delete
     duplicate: Duplicate
     keepAspectRatio: Keep aspect ratio
+    copy: Copy
+    cut: Cut
+    paste: Paste
   menu:
     clearPage: Clear page $page/$totalPages
     clearAllPages: Clear all pages

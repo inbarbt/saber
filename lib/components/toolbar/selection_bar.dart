@@ -7,11 +7,19 @@ import 'package:saber/i18n/strings.g.dart';
 class SelectionBar extends StatelessWidget {
   final VoidCallback duplicateSelection;
   final VoidCallback deleteSelection;
+  final VoidCallback? copySelection;
+  final VoidCallback? cutSelection;
+
+  /// Null hides the paste button (nothing to paste).
+  final VoidCallback? pasteSelection;
 
   const new({
     super.key,
     required this.duplicateSelection,
     required this.deleteSelection,
+    this.copySelection,
+    this.cutSelection,
+    this.pasteSelection,
   });
 
   @override
@@ -19,6 +27,24 @@ class SelectionBar extends StatelessWidget {
     return Row(
       mainAxisAlignment: .center,
       children: [
+        if (copySelection != null)
+          _SelectionBarButton(
+            onPressed: copySelection!,
+            tooltip: t.editor.selectionBar.copy,
+            icon: Icons.copy_all,
+          ),
+        if (cutSelection != null)
+          _SelectionBarButton(
+            onPressed: cutSelection!,
+            tooltip: t.editor.selectionBar.cut,
+            icon: Icons.content_cut,
+          ),
+        if (pasteSelection != null)
+          _SelectionBarButton(
+            onPressed: pasteSelection!,
+            tooltip: t.editor.selectionBar.paste,
+            icon: Icons.content_paste,
+          ),
         IconButton(
           onPressed: duplicateSelection,
           style: TextButton.styleFrom(
@@ -78,6 +104,32 @@ class _KeepAspectRatioToggleState extends State<_KeepAspectRatioToggle> {
       ),
       tooltip: t.editor.selectionBar.keepAspectRatio,
       icon: const Icon(Icons.aspect_ratio),
+    );
+  }
+}
+
+class _SelectionBarButton extends StatelessWidget {
+  const new({
+    required this.onPressed,
+    required this.tooltip,
+    required this.icon,
+  });
+
+  final VoidCallback onPressed;
+  final String tooltip;
+  final IconData icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      onPressed: onPressed,
+      style: TextButton.styleFrom(
+        foregroundColor: ColorScheme.of(context).secondary,
+        backgroundColor: Colors.transparent,
+        shape: const CircleBorder(),
+      ),
+      tooltip: tooltip,
+      icon: Icon(icon),
     );
   }
 }

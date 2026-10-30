@@ -1277,6 +1277,15 @@ class Translations$editor$selectionBar$en {
 
 	/// en: 'Keep aspect ratio'
 	String get keepAspectRatio => 'Keep aspect ratio';
+
+	/// en: 'Copy'
+	String get copy => 'Copy';
+
+	/// en: 'Cut'
+	String get cut => 'Cut';
+
+	/// en: 'Paste'
+	String get paste => 'Paste';
 }
 
 // Path: editor.menu
