@@ -11,8 +11,12 @@ class Select extends Tool {
   static Select get currentSelect => _currentSelect;
 
   /// The minimum ratio of points inside a stroke or image
-  /// for it to be selected.
+  /// for it to be selected, when [selectTouched] is off.
   static const minPercentInside = 0.7;
+
+  /// Select anything the lasso touches, not only what it mostly encloses.
+  /// On in Saber+: circling part of a long line selects the whole line.
+  static var selectTouched = true;
 
   var selectResult = SelectResult(
     pageIndex: -1,
@@ -75,6 +79,18 @@ class Select extends Tool {
 
     for (int i = 0; i < strokes.length; i++) {
       final stroke = strokes[i];
+      if (selectTouched) {
+        // Use the line itself rather than its thick outline,
+        // so strokes that only brush the lasso's edge stay out.
+        final centerline = stroke.centerline;
+        final points = centerline.isNotEmpty
+            ? centerline
+            : stroke.lowQualityPolygon;
+        if (points.any(selectResult.path.contains)) {
+          selectResult.strokes.add(stroke);
+        }
+        continue;
+      }
       final percentInside = polygonPercentInside(
         selectResult.path,
         stroke.lowQualityPolygon,
@@ -87,7 +103,9 @@ class Select extends Tool {
     for (int i = 0; i < images.length; i++) {
       final image = images[i];
       final percentInside = rectPercentInside(selectResult.path, image.dstRect);
-      if (percentInside >= minPercentInside) {
+      if (selectTouched
+          ? percentInside > 0
+          : percentInside >= minPercentInside) {
         selectResult.images.add(image);
       }
     }

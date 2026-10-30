@@ -10,6 +10,10 @@ import 'package:sbn/has_size.dart';
 
 void main() {
   group('Select tool', () {
+    // These tests cover the original "mostly enclosed" rule.
+    setUp(() => Select.selectTouched = false);
+    tearDown(() => Select.selectTouched = true);
+
     test('selects the right strokes', () async {
       final select = Select.currentSelect;
       final options = StrokeOptions(size: 9);
@@ -161,6 +165,45 @@ void main() {
         select.doneSelecting = true;
         expect(select.getDominantStrokeColor(), Colors.blue);
       });
+    });
+  });
+
+  group('Select tool, select what the lasso touches', () {
+    const page = HasSize(Size(500, 500));
+
+    Stroke line(List<Offset> points) => Stroke(
+      color: Stroke.defaultColor,
+      pressureEnabled: false,
+      options: StrokeOptions(size: 4),
+      pageIndex: 0,
+      page: page,
+      toolId: .fountainPen,
+    )..addPoints(points);
+
+    void lassoSquare(Select select, Rect r) {
+      select.onDragStart(r.topLeft, 0);
+      select.onDragUpdate(r.bottomLeft);
+      select.onDragUpdate(r.bottomRight);
+      select.onDragUpdate(r.topRight);
+    }
+
+    test('circling part of a long line selects the whole line', () {
+      final select = Select.currentSelect;
+      final long = line([for (int i = 0; i <= 40; i++) Offset(i * 10.0, 50)]);
+      final elsewhere = line([const Offset(10, 300), const Offset(100, 300)]);
+      lassoSquare(select, const Rect.fromLTWH(0, 0, 60, 100));
+      select.onDragEnd([long, elsewhere], const []);
+      expect(select.selectResult.strokes, [long]);
+    });
+
+    test('a line that only passes near the lasso is not selected', () {
+      final select = Select.currentSelect;
+      // The line runs 3 units outside the lasso's right edge:
+      // its thick outline overlaps, but the line itself doesn't.
+      final near = line([const Offset(63, 0), const Offset(63, 100)]);
+      lassoSquare(select, const Rect.fromLTWH(0, 0, 60, 100));
+      select.onDragEnd([near], const []);
+      expect(select.selectResult.strokes, isEmpty);
     });
   });
 }
