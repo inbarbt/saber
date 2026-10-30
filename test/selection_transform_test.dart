@@ -12,11 +12,12 @@ import 'package:saber/data/tools/selection_transform.dart';
 
 void main() {
   const bounds = Rect.fromLTWH(100, 100, 200, 100);
+  const box = SelectionBox(bounds, 0);
 
   group('hitTest:', () {
     test('finds a corner', () {
       expect(
-        SelectionTransform.hitTest(const Offset(302, 98), bounds, 1),
+        SelectionTransform.hitTest(const Offset(302, 98), box, 1),
         SelectionHandle.topRight,
       );
     });
@@ -24,30 +25,30 @@ void main() {
     test('finds the rotate handle above the box', () {
       final rotate = bounds.topCenter - const Offset(0, 40);
       expect(
-        SelectionTransform.hitTest(rotate, bounds, 1),
+        SelectionTransform.hitTest(rotate, box, 1),
         SelectionHandle.rotate,
       );
     });
 
     test('misses the middle of the box', () {
-      expect(SelectionTransform.hitTest(bounds.center, bounds, 1), isNull);
+      expect(SelectionTransform.hitTest(bounds.center, box, 1), isNull);
     });
 
     test('hit area shrinks in page units when zoomed in', () {
       // 20 page units away: inside at 1x (28px), outside at 2x (14 units)
       const near = Offset(320, 100);
       expect(
-        SelectionTransform.hitTest(near, bounds, 1),
+        SelectionTransform.hitTest(near, box, 1),
         SelectionHandle.topRight,
       );
-      expect(SelectionTransform.hitTest(near, bounds, 2), isNull);
+      expect(SelectionTransform.hitTest(near, box, 2), isNull);
     });
   });
 
   group('resize:', () {
     test('dragging bottom-right outward doubles the size', () {
       final (sx, sy) = SelectionTransform.resizeFactors(
-        bounds,
+        box,
         SelectionHandle.bottomRight,
         const Offset(500, 300),
         keepAspectRatio: false,
@@ -58,7 +59,7 @@ void main() {
 
     test('top-left keeps the bottom-right corner fixed', () {
       final m = SelectionTransform.resizeMatrix(
-        bounds,
+        box,
         SelectionHandle.topLeft,
         const Offset(200, 150),
         keepAspectRatio: false,
@@ -75,7 +76,7 @@ void main() {
 
     test('keeping the aspect ratio uses one factor', () {
       final (sx, sy) = SelectionTransform.resizeFactors(
-        bounds,
+        box,
         SelectionHandle.bottomRight,
         const Offset(500, 220),
         keepAspectRatio: true,
@@ -86,7 +87,7 @@ void main() {
 
     test('never flips or collapses', () {
       final (sx, sy) = SelectionTransform.resizeFactors(
-        bounds,
+        box,
         SelectionHandle.bottomRight,
         Offset.zero,
         keepAspectRatio: false,
@@ -98,7 +99,7 @@ void main() {
     test('a horizontal line still scales', () {
       const line = Rect.fromLTRB(0, 50, 100, 50);
       final (sx, sy) = SelectionTransform.resizeFactors(
-        line,
+        const SelectionBox(line, 0),
         SelectionHandle.bottomRight,
         const Offset(200, 90),
         keepAspectRatio: true,
@@ -155,6 +156,76 @@ void main() {
     });
   });
 
+  group('turned box:', () {
+    const turned = SelectionBox(Rect.fromLTWH(0, 0, 100, 50), pi / 2);
+
+    test('handles turn with the box', () {
+      final handles = SelectionTransform.handlePositions(turned, 1);
+      // A quarter turn clockwise maps local (x, y) to page (-y, x)
+      final topRight = handles[SelectionHandle.topRight]!;
+      expect(topRight.dx, closeTo(0, 1e-9));
+      expect(topRight.dy, closeTo(100, 1e-9));
+      // The rotate handle sits "above" the box in its own frame
+      final rotate = handles[SelectionHandle.rotate]!;
+      expect(rotate.dx, closeTo(40, 1e-9));
+      expect(rotate.dy, closeTo(50, 1e-9));
+    });
+
+    test('contains works in the box frame', () {
+      expect(turned.contains(const Offset(-25, 50)), isTrue);
+      expect(turned.contains(const Offset(25, 50)), isFalse);
+    });
+
+    test('resizing a turned box keeps the opposite corner fixed', () {
+      final m = SelectionTransform.resizeMatrix(
+        turned,
+        SelectionHandle.bottomRight,
+        turned.toPage(const Offset(200, 100)),
+        keepAspectRatio: true,
+      );
+      final anchor = turned.toPage(Offset.zero);
+      final moved = MatrixUtils.transformPoint(m, anchor);
+      expect(moved.dx, closeTo(anchor.dx, 1e-9));
+      expect(moved.dy, closeTo(anchor.dy, 1e-9));
+      expect(SelectionTransform.lengthScale(m), closeTo(2, 1e-9));
+    });
+
+    test('content box fits tightly in its own frame', () {
+      final page = EditorPage();
+      final diagonal = Stroke(
+        color: Colors.black,
+        pressureEnabled: false,
+        options: StrokeOptions(size: 2, isComplete: true),
+        pageIndex: 0,
+        page: page,
+        toolId: .ballpointPen,
+      )..addPoints([for (int i = 0; i <= 10; i++) Offset(i * 10.0, i * 10.0)]);
+      final upright = SelectionTransform.contentBox([diagonal], const [])!;
+      final along = SelectionTransform.contentBox(
+        [diagonal],
+        const [],
+        angle: pi / 4,
+      )!;
+      // Turned along the line, the box is long and thin
+      expect(along.local.height, lessThan(upright.local.height / 3));
+    });
+
+    test('snapping is to absolute angles', () {
+      // Box already at 10 degrees; dragging 33 degrees more lands near 43,
+      // which snaps to 45: the returned delta is 35.
+      final p = Offset.fromDirection((-90 + 33) * pi / 180, 10);
+      expect(
+        SelectionTransform.rotationDegrees(
+          Offset.zero,
+          const Offset(0, -10),
+          p,
+          startAngle: 10,
+        ),
+        closeTo(35, 1e-9),
+      );
+    });
+  });
+
   group('strokes:', () {
     final page = EditorPage();
 
@@ -175,7 +246,7 @@ void main() {
         final result = original.transformed(m);
         expect(identical(result, original), isFalse);
         expect(original.lowQualityPolygon.first.dy, closeTo(0, 4));
-        final bounds = SelectionTransform.contentBounds([result], const [])!;
+        final bounds = SelectionTransform.contentBox([result], const [])!.local;
         // A horizontal line turned 90 degrees becomes vertical
         expect(bounds.height, greaterThan(bounds.width));
       },
@@ -184,7 +255,7 @@ void main() {
     test('scaling doubles thickness', () {
       final original = line();
       final m = SelectionTransform.resizeMatrix(
-        const Rect.fromLTWH(0, 0, 20, 20),
+        const SelectionBox(Rect.fromLTWH(0, 0, 20, 20), 0),
         SelectionHandle.bottomRight,
         const Offset(40, 40),
         keepAspectRatio: true,
@@ -203,7 +274,7 @@ void main() {
         rect: const Rect.fromLTWH(0, 0, 10, 10),
       );
       final m = SelectionTransform.resizeMatrix(
-        const Rect.fromLTWH(0, 0, 10, 10),
+        const SelectionBox(Rect.fromLTWH(0, 0, 10, 10), 0),
         SelectionHandle.bottomRight,
         const Offset(20, 30),
         keepAspectRatio: false,
@@ -252,7 +323,7 @@ void main() {
 
       final stretched = circle.transformed(
         SelectionTransform.resizeMatrix(
-          const Rect.fromLTWH(5, 5, 10, 10),
+          const SelectionBox(Rect.fromLTWH(5, 5, 10, 10), 0),
           SelectionHandle.bottomRight,
           const Offset(35, 15),
           keepAspectRatio: false,

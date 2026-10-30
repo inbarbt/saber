@@ -232,6 +232,9 @@ class CanvasPainter extends CustomPainter {
   void _drawSelection(Canvas canvas) {
     if (currentSelection == null) return;
 
+    // Once something is selected, the box with handles replaces the lasso.
+    if (_drawSelectionBox(canvas)) return;
+
     // draw translucent fill
     canvas.drawPath(
       currentSelection!.path,
@@ -249,32 +252,36 @@ class CanvasPainter extends CustomPainter {
         ..strokeWidth = 3
         ..style = .stroke,
     );
-
-    _drawSelectionHandles(canvas);
   }
 
-  /// Draws the box with resize handles and the rotate handle
-  /// around the selected content.
-  void _drawSelectionHandles(Canvas canvas) {
+  /// Draws the box with resize handles and the rotate handle around the
+  /// selected content. The box turns with the selection.
+  /// Returns false if there's no box to draw (e.g. still lassoing).
+  bool _drawSelectionBox(Canvas canvas) {
     final selection = currentSelection!;
-    // Previews are drawn without a real zoom level
-    if (currentScale < 0.01) return;
-    final bounds = SelectionTransform.contentBounds(
+    final box = SelectionTransform.contentBox(
       selection.strokes,
       selection.images,
+      angle: selection.frameAngle,
     );
-    if (bounds == null) return;
+    if (box == null) return false;
+    // Previews are drawn without a real zoom level
+    if (currentScale < 0.01) return true;
 
     final scale = currentScale;
-    final handles = SelectionTransform.handlePositions(bounds, scale);
+    final handles = SelectionTransform.handlePositions(box, scale);
     final linePaint = Paint()
       ..color = primaryColor
       ..strokeWidth = 1.5 / scale
       ..style = .stroke;
 
-    canvas.drawRect(bounds, linePaint);
+    canvas.drawPath(
+      Path()..addPolygon(box.corners, true),
+      Paint()..color = primaryColor.withValues(alpha: 0.06),
+    );
+    canvas.drawPath(Path()..addPolygon(box.corners, true), linePaint);
     canvas.drawLine(
-      bounds.topCenter,
+      box.toPage(box.local.topCenter),
       handles[SelectionHandle.rotate]!,
       linePaint,
     );
@@ -306,6 +313,7 @@ class CanvasPainter extends CustomPainter {
       final rotateHandle = handles[SelectionHandle.rotate]!;
       text.paint(canvas, rotateHandle + Offset(radius * 1.8, -text.height / 2));
     }
+    return true;
   }
 
   static const double _pageIndicatorFontSize = 20;

@@ -15,6 +15,41 @@ enum SelectionHandle {
   bool get isCorner => this != rotate;
 }
 
+/// The box around a selection. It turns with the selection:
+/// [local] is the box in a frame rotated by [angle] (radians,
+/// clockwise on screen) around the page origin.
+@immutable
+class SelectionBox {
+  const new(this.local, this.angle);
+
+  final Rect local;
+  final double angle;
+
+  /// A point in the box's frame, in page coordinates.
+  Offset toPage(Offset localPoint) => _rotate(localPoint, angle);
+
+  /// A page point, in the box's frame.
+  Offset toLocal(Offset pagePoint) => _rotate(pagePoint, -angle);
+
+  Offset get center => toPage(local.center);
+
+  /// The corners in drawing order, in page coordinates.
+  List<Offset> get corners => [
+    toPage(local.topLeft),
+    toPage(local.topRight),
+    toPage(local.bottomRight),
+    toPage(local.bottomLeft),
+  ];
+
+  bool contains(Offset pagePoint) => local.contains(toLocal(pagePoint));
+
+  static Offset _rotate(Offset p, double angle) {
+    if (angle == 0) return p;
+    final c = cos(angle), s = sin(angle);
+    return Offset(p.dx * c - p.dy * s, p.dx * s + p.dy * c);
+  }
+}
+
 /// Geometry for resizing and rotating a selection with handles.
 ///
 /// Everything here is pure math on page coordinates, so it can be tested
@@ -40,96 +75,109 @@ abstract final class SelectionTransform {
   /// so they never collapse to nothing or flip inside out.
   static const minScale = 0.05;
 
-  /// The axis-aligned box around the selected content.
+  /// The box around the selected content, turned by [angle] radians.
   /// Returns null if nothing with a size is selected.
-  static Rect? contentBounds(List<Stroke> strokes, List<EditorImage> images) {
-    Rect? bounds;
-    for (final stroke in strokes) {
-      final polygon = stroke.lowQualityPolygon.where((p) => p.isFinite);
-      if (polygon.isEmpty) continue;
-      final rect = _boundsOf(polygon);
-      bounds = bounds?.expandToInclude(rect) ?? rect;
-    }
-    for (final image in images) {
-      bounds = bounds?.expandToInclude(image.dstRect) ?? image.dstRect;
-    }
-    return bounds;
-  }
+  static SelectionBox? contentBox(
+    List<Stroke> strokes,
+    List<EditorImage> images, {
+    double angle = 0,
+  }) {
+    final points = <Offset>[
+      for (final stroke in strokes)
+        ...stroke.lowQualityPolygon.where((p) => p.isFinite),
+      for (final image in images) ...[
+        image.dstRect.topLeft,
+        image.dstRect.topRight,
+        image.dstRect.bottomLeft,
+        image.dstRect.bottomRight,
+      ],
+    ];
+    if (points.isEmpty) return null;
 
-  static Rect _boundsOf(Iterable<Offset> points) {
+    final frame = SelectionBox(Rect.zero, angle);
     var minX = double.infinity, minY = double.infinity;
     var maxX = -double.infinity, maxY = -double.infinity;
-    for (final p in points) {
+    for (final point in points) {
+      final p = frame.toLocal(point);
       minX = min(minX, p.dx);
       minY = min(minY, p.dy);
       maxX = max(maxX, p.dx);
       maxY = max(maxY, p.dy);
     }
-    return Rect.fromLTRB(minX, minY, maxX, maxY);
+    return SelectionBox(Rect.fromLTRB(minX, minY, maxX, maxY), angle);
   }
 
   /// Where each handle sits, in page coordinates.
   /// [scale] is the current zoom, so handles keep a constant screen size.
   static Map<SelectionHandle, Offset> handlePositions(
-    Rect bounds,
+    SelectionBox box,
     double scale,
-  ) => {
-    .topLeft: bounds.topLeft,
-    .topRight: bounds.topRight,
-    .bottomLeft: bounds.bottomLeft,
-    .bottomRight: bounds.bottomRight,
-    .rotate: bounds.topCenter - Offset(0, rotateHandleOffset / scale),
-  };
+  ) {
+    final r = box.local;
+    return {
+      .topLeft: box.toPage(r.topLeft),
+      .topRight: box.toPage(r.topRight),
+      .bottomLeft: box.toPage(r.bottomLeft),
+      .bottomRight: box.toPage(r.bottomRight),
+      .rotate: box.toPage(r.topCenter - Offset(0, rotateHandleOffset / scale)),
+    };
+  }
 
   /// The handle under [position], if any. The rotate handle wins ties.
-  static SelectionHandle? hitTest(Offset position, Rect bounds, double scale) {
+  static SelectionHandle? hitTest(
+    Offset position,
+    SelectionBox box,
+    double scale,
+  ) {
     final hitRadius = handleHitRadius / scale;
     SelectionHandle? best;
     var bestDistance = double.infinity;
     for (final MapEntry(key: handle, value: center) in handlePositions(
-      bounds,
+      box,
       scale,
     ).entries) {
       final distance = (position - center).distance;
       if (distance > hitRadius) continue;
-      if (handle == .rotate || distance < bestDistance) {
+      if (handle == .rotate) return handle;
+      if (distance < bestDistance) {
         best = handle;
-        bestDistance = handle == .rotate ? -1 : distance;
+        bestDistance = distance;
       }
     }
     return best;
   }
 
-  /// The corner opposite [handle]: it stays fixed while resizing.
-  static Offset anchorFor(SelectionHandle handle, Rect bounds) =>
-      switch (handle) {
-        .topLeft => bounds.bottomRight,
-        .topRight => bounds.bottomLeft,
-        .bottomLeft => bounds.topRight,
-        .bottomRight => bounds.topLeft,
-        .rotate => bounds.center,
-      };
+  /// The corner opposite [handle] (in the box's frame):
+  /// it stays fixed while resizing.
+  static Offset anchorFor(SelectionHandle handle, Rect r) => switch (handle) {
+    .topLeft => r.bottomRight,
+    .topRight => r.bottomLeft,
+    .bottomLeft => r.topRight,
+    .bottomRight => r.topLeft,
+    .rotate => r.center,
+  };
 
-  static Offset _cornerFor(SelectionHandle handle, Rect bounds) =>
-      switch (handle) {
-        .topLeft => bounds.topLeft,
-        .topRight => bounds.topRight,
-        .bottomLeft => bounds.bottomLeft,
-        .bottomRight => bounds.bottomRight,
-        .rotate => bounds.topCenter,
-      };
+  static Offset _cornerFor(SelectionHandle handle, Rect r) => switch (handle) {
+    .topLeft => r.topLeft,
+    .topRight => r.topRight,
+    .bottomLeft => r.bottomLeft,
+    .bottomRight => r.bottomRight,
+    .rotate => r.topCenter,
+  };
 
-  /// The scale factors for dragging a corner [handle] of [startBounds]
-  /// to [pointer].
+  /// The scale factors (along the box's own axes) for dragging a corner
+  /// [handle] of [box] to [pointer].
   static (double sx, double sy) resizeFactors(
-    Rect startBounds,
+    SelectionBox box,
     SelectionHandle handle,
     Offset pointer, {
     required bool keepAspectRatio,
   }) {
     assert(handle.isCorner);
-    final anchor = anchorFor(handle, startBounds);
-    final corner = _cornerFor(handle, startBounds);
+    final r = box.local;
+    final anchor = anchorFor(handle, r);
+    final corner = _cornerFor(handle, r);
+    final local = box.toLocal(pointer);
 
     double factor(double pointer, double anchor, double corner) {
       final span = corner - anchor;
@@ -139,11 +187,11 @@ abstract final class SelectionTransform {
       return max(minScale, (pointer - anchor) / span);
     }
 
-    var sx = factor(pointer.dx, anchor.dx, corner.dx);
-    var sy = factor(pointer.dy, anchor.dy, corner.dy);
+    var sx = factor(local.dx, anchor.dx, corner.dx);
+    var sy = factor(local.dy, anchor.dy, corner.dy);
 
-    final hasWidth = startBounds.width.abs() > 1e-6;
-    final hasHeight = startBounds.height.abs() > 1e-6;
+    final hasWidth = r.width.abs() > 1e-6;
+    final hasHeight = r.height.abs() > 1e-6;
     if (keepAspectRatio && hasWidth && hasHeight) {
       final s = max(sx, sy);
       sx = s;
@@ -157,46 +205,57 @@ abstract final class SelectionTransform {
     return (sx, sy);
   }
 
-  /// The matrix for dragging a corner [handle] of [startBounds] to [pointer].
+  /// The matrix for dragging a corner [handle] of [box] to [pointer].
   static Matrix4 resizeMatrix(
-    Rect startBounds,
+    SelectionBox box,
     SelectionHandle handle,
     Offset pointer, {
     required bool keepAspectRatio,
   }) {
     final (sx, sy) = resizeFactors(
-      startBounds,
+      box,
       handle,
       pointer,
       keepAspectRatio: keepAspectRatio,
     );
-    final anchor = anchorFor(handle, startBounds);
+    final anchor = anchorFor(handle, box.local);
     return Matrix4.identity()
+      ..rotateZ(box.angle)
       ..translateByDouble(anchor.dx, anchor.dy, 0, 1)
       ..scaleByDouble(sx, sy, 1, 1)
-      ..translateByDouble(-anchor.dx, -anchor.dy, 0, 1);
+      ..translateByDouble(-anchor.dx, -anchor.dy, 0, 1)
+      ..rotateZ(-box.angle);
   }
 
   /// The rotation (degrees, clockwise on screen) from dragging the rotate
   /// handle from [startPointer] to [pointer] around [center].
-  /// Snaps to multiples of [snapStep] when close.
+  ///
+  /// [startAngle] is how far the box is already turned (degrees).
+  /// Snapping is to absolute multiples of [snapStep], so a turned box
+  /// can be put back to exactly 0°.
   static double rotationDegrees(
     Offset center,
     Offset startPointer,
-    Offset pointer,
-  ) {
+    Offset pointer, {
+    double startAngle = 0,
+  }) {
     final start = (startPointer - center).direction;
     final now = (pointer - center).direction;
-    var degrees = (now - start) * 180 / pi;
-    // Normalise to (-180, 180]
-    degrees = (degrees + 180) % 360 - 180;
-    if (degrees == -180) degrees = 180;
+    final delta = (now - start) * 180 / pi;
+    final total = normalizeDegrees(startAngle + delta);
 
-    final nearest = (degrees / snapStep).roundToDouble() * snapStep;
-    if ((degrees - nearest).abs() <= snapTolerance) degrees = nearest;
-    // Avoid showing "-0°"
-    if (degrees == 0) degrees = 0;
-    return degrees;
+    var snapped = total;
+    final nearest = (total / snapStep).roundToDouble() * snapStep;
+    if ((total - nearest).abs() <= snapTolerance) snapped = nearest;
+    return normalizeDegrees(snapped - startAngle);
+  }
+
+  /// [degrees] in the range (-180, 180], without "-0".
+  static double normalizeDegrees(double degrees) {
+    var d = (degrees + 180) % 360 - 180;
+    if (d == -180) d = 180;
+    if (d == 0) d = 0;
+    return d;
   }
 
   static Matrix4 rotateMatrix(Offset center, double degrees) {
@@ -219,14 +278,16 @@ abstract final class SelectionTransform {
 
   /// Applies [m] to an image's rectangle.
   ///
-  /// Images can't be rotated, so under rotation only their centre moves.
+  /// Images stay upright: under rotation only their centre moves, and
+  /// under a turned resize they scale evenly.
   static Rect transformImageRect(Rect rect, Matrix4 m) {
     if (isAxisAligned(m)) return MatrixUtils.transformRect(m, rect);
     final center = MatrixUtils.transformPoint(m, rect.center);
+    final scale = lengthScale(m);
     return Rect.fromCenter(
       center: center,
-      width: rect.width,
-      height: rect.height,
+      width: rect.width * scale,
+      height: rect.height * scale,
     );
   }
 }

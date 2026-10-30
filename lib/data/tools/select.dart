@@ -134,6 +134,10 @@ class SelectResult {
   /// The current angle while the selection is being rotated, for display.
   double? rotationDegrees;
 
+  /// How far the selection box is turned (radians, clockwise on screen).
+  /// The box turns with the content when it is rotated.
+  double frameAngle = 0;
+
   new({
     required this.pageIndex,
     required this.strokes,
@@ -159,6 +163,6 @@ class SelectResult {
       images: images ?? this.images,
       path: path ?? this.path,
       pageIndexStart: pageIndexStart ?? this.pageIndexStart,
-    );
+    )..frameAngle = frameAngle;
   }
 }

@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:collapsible/collapsible.dart';
@@ -555,7 +556,8 @@ class EditorState extends State<Editor> {
   /// State of the current resize or rotate gesture on the selection handles.
   /// [_transformHandle] is null when no such gesture is in progress.
   SelectionHandle? _transformHandle;
-  Rect _transformStartBounds = .zero;
+  var _transformStartBox = const SelectionBox(Rect.zero, 0);
+  double _transformDeltaRadians = 0;
   Offset _transformStartPointer = .zero;
   var _transformStartPath = Path();
   List<Stroke> _transformOriginals = const [];
@@ -565,16 +567,29 @@ class EditorState extends State<Editor> {
   SelectionHandle? _selectionHandleAt(Select select, Offset position) {
     if (!select.doneSelecting) return null;
     if (select.selectResult.pageIndex != dragPageIndex) return null;
-    final bounds = SelectionTransform.contentBounds(
-      select.selectResult.strokes,
-      select.selectResult.images,
-    );
-    if (bounds == null) return null;
+    final box = _selectionBox(select.selectResult);
+    if (box == null) return null;
     return SelectionTransform.hitTest(
       position,
-      bounds,
+      box,
       _transformationController.value.approxScale,
     );
+  }
+
+  SelectionBox? _selectionBox(SelectResult result) =>
+      SelectionTransform.contentBox(
+        result.strokes,
+        result.images,
+        angle: result.frameAngle,
+      );
+
+  /// Whether [position] is on the current selection (inside its box or
+  /// its lasso), so a drag there moves the selection.
+  bool _isOnSelection(Select select, Offset position) {
+    if (!select.doneSelecting) return false;
+    if (select.selectResult.pageIndex != dragPageIndex) return false;
+    if (select.selectResult.path.contains(position)) return true;
+    return _selectionBox(select.selectResult)?.contains(position) ?? false;
   }
 
   void _startSelectionTransform(
@@ -584,10 +599,8 @@ class EditorState extends State<Editor> {
   ) {
     final result = select.selectResult;
     _transformHandle = handle;
-    _transformStartBounds = SelectionTransform.contentBounds(
-      result.strokes,
-      result.images,
-    )!;
+    _transformStartBox = _selectionBox(result)!;
+    _transformDeltaRadians = 0;
     _transformStartPointer = position;
     _transformStartPath = result.path;
     _transformOriginals = List.of(result.strokes);
@@ -599,17 +612,23 @@ class EditorState extends State<Editor> {
     final result = select.selectResult;
     final Matrix4 matrix;
     if (handle == .rotate) {
-      final center = _transformStartBounds.center;
+      final center = _transformStartBox.center;
+      final startDegrees = _transformStartBox.angle * 180 / pi;
       final degrees = SelectionTransform.rotationDegrees(
         center,
         _transformStartPointer,
         position,
+        startAngle: startDegrees,
       );
-      result.rotationDegrees = degrees;
+      result.rotationDegrees = SelectionTransform.normalizeDegrees(
+        startDegrees + degrees,
+      );
+      _transformDeltaRadians = degrees * pi / 180;
+      result.frameAngle = _transformStartBox.angle + _transformDeltaRadians;
       matrix = SelectionTransform.rotateMatrix(center, degrees);
     } else {
       matrix = SelectionTransform.resizeMatrix(
-        _transformStartBounds,
+        _transformStartBox,
         handle,
         position,
         keepAspectRatio: SelectionTransform.keepAspectRatio,
@@ -722,9 +741,7 @@ class EditorState extends State<Editor> {
       final select = currentTool as Select;
       final onSelection =
           _selectionHandleAt(select, position) != null ||
-          (select.doneSelecting &&
-              select.selectResult.pageIndex == dragPageIndex! &&
-              select.selectResult.path.contains(position));
+          _isOnSelection(select, position);
       if (!onSelection) {
         select.unselect();
         currentTool = _toolBeforeCircleLasso!;
@@ -768,9 +785,7 @@ class EditorState extends State<Editor> {
       final handle = _selectionHandleAt(select, position);
       if (handle != null) {
         _startSelectionTransform(select, handle, position);
-      } else if (select.doneSelecting &&
-          select.selectResult.pageIndex == dragPageIndex! &&
-          select.selectResult.path.contains(position)) {
+      } else if (_isOnSelection(select, position)) {
         // drag selection in onDrawUpdate
       } else {
         select.onDragStart(position, dragPageIndex!);
