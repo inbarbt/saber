@@ -24,6 +24,11 @@ class Stroke {
   bool get isEmpty => points.isEmpty;
   int get length => points.length;
 
+  /// The path the pen took, without thickness.
+  List<Offset> get centerline => [
+    for (final point in points) Offset(point.x, point.y),
+  ];
+
   int pageIndex;
   HasSize page;
   final ToolId toolId;

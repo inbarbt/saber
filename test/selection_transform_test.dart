@@ -88,7 +88,7 @@ void main() {
       final (sx, sy) = SelectionTransform.resizeFactors(
         bounds,
         SelectionHandle.bottomRight,
-        const Offset(0, 0),
+        Offset.zero,
         keepAspectRatio: false,
       );
       expect(sx, SelectionTransform.minScale);
@@ -109,7 +109,7 @@ void main() {
   });
 
   group('rotate:', () {
-    const center = Offset(0, 0);
+    const center = Offset.zero;
 
     test('quarter turn clockwise on screen is 90 degrees', () {
       expect(
@@ -165,7 +165,7 @@ void main() {
       pageIndex: 0,
       page: page,
       toolId: .ballpointPen,
-    )..addPoints(const [Offset(0, 0), Offset(10, 0), Offset(20, 0)]);
+    )..addPoints(const [Offset.zero, Offset(10, 0), Offset(20, 0)]);
 
     test(
       'transformed stroke is a new object and the original is unchanged',

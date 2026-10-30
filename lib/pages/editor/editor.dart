@@ -41,6 +41,7 @@ import 'package:saber/data/file_manager/file_manager.dart';
 import 'package:saber/data/nextcloud/saber_syncer.dart';
 import 'package:saber/data/prefs.dart';
 import 'package:saber/data/tools/_tool.dart';
+import 'package:saber/data/tools/circle_to_lasso.dart';
 import 'package:saber/data/tools/eraser.dart';
 import 'package:saber/data/tools/highlighter.dart';
 import 'package:saber/data/tools/laser_pointer.dart';
@@ -497,6 +498,59 @@ class EditorState extends State<Editor> {
   /// Used to record a move in the history.
   Offset moveOffset = .zero;
 
+  /// Circle to lasso: a long press on a hand-drawn loop turns it into
+  /// a selection. See [CircleToLasso].
+  Timer? _loopPressTimer;
+  Offset _loopPressPosition = .zero;
+
+  /// The tool to go back to once a circle-to-lasso selection is dismissed.
+  Tool? _toolBeforeCircleLasso;
+
+  void _cancelLoopPress() {
+    _loopPressTimer?.cancel();
+    _loopPressTimer = null;
+  }
+
+  void _convertLoopToSelection(Stroke loop, int pageIndex) {
+    _loopPressTimer = null;
+    if (!mounted) return;
+    final page = coreInfo.pages[pageIndex];
+    if (!page.strokes.contains(loop)) return;
+
+    final select = Select.currentSelect;
+    select.selectResult = SelectResult(
+      pageIndex: pageIndex,
+      strokes: [],
+      images: [],
+      path: CircleToLasso.lassoPath(loop),
+      pageIndexStart: pageIndex,
+    );
+    select.onDragEnd([
+      for (final stroke in page.strokes)
+        if (!identical(stroke, loop)) stroke,
+    ], page.images);
+    if (select.selectResult.isEmpty) {
+      // Nothing inside: leave the loop alone.
+      select.unselect();
+      return;
+    }
+
+    HapticFeedback.mediumImpact();
+    setState(() {
+      // Drop the dot the pen started drawing for this press.
+      Pen.currentStroke = null;
+      page.strokes.remove(loop);
+      history.recordChange(HistoricDelete(strokes: [loop], images: []));
+
+      _toolBeforeCircleLasso = currentTool;
+      currentTool = select;
+      // Dragging on from here moves the selection.
+      previousPosition = _loopPressPosition;
+      moveOffset = .zero;
+      page.redrawStrokes();
+    });
+  }
+
   /// State of the current resize or rotate gesture on the selection handles.
   /// [_transformHandle] is null when no such gesture is in progress.
   SelectionHandle? _transformHandle;
@@ -661,6 +715,22 @@ class EditorState extends State<Editor> {
     final position = page.renderBox!.globalToLocal(details.focalPoint);
     history.canRedo = false;
 
+    // After a circle-to-lasso selection, touching outside it
+    // dismisses the selection and goes back to the pen.
+    if (currentTool is Select && _toolBeforeCircleLasso != null) {
+      final select = currentTool as Select;
+      final onSelection =
+          _selectionHandleAt(select, position) != null ||
+          (select.doneSelecting &&
+              select.selectResult.pageIndex == dragPageIndex! &&
+              select.selectResult.path.contains(position));
+      if (!onSelection) {
+        select.unselect();
+        currentTool = _toolBeforeCircleLasso!;
+        _toolBeforeCircleLasso = null;
+      }
+    }
+
     if (currentTool is Pen) {
       (currentTool as Pen).onDragStart(
         position,
@@ -668,6 +738,20 @@ class EditorState extends State<Editor> {
         dragPageIndex!,
         currentPressure,
       );
+      _cancelLoopPress();
+      final loop = CircleToLasso.loopAt(
+        position,
+        page.strokes,
+        _transformationController.value.approxScale,
+      );
+      if (loop != null) {
+        _loopPressPosition = position;
+        final pageIndex = dragPageIndex!;
+        _loopPressTimer = Timer(
+          CircleToLasso.holdDuration,
+          () => _convertLoopToSelection(loop, pageIndex),
+        );
+      }
     } else if (currentTool is Eraser) {
       for (final stroke in (currentTool as Eraser).checkForOverlappingStrokes(
         position,
@@ -711,6 +795,13 @@ class EditorState extends State<Editor> {
     final page = coreInfo.pages[dragPageIndex!];
     Offset position = page.renderBox!.globalToLocal(details.focalPoint);
     Offset offset = position - previousPosition;
+
+    if (_loopPressTimer != null &&
+        (position - _loopPressPosition).distance >
+            CircleToLasso.moveTolerance /
+                _transformationController.value.approxScale) {
+      _cancelLoopPress();
+    }
 
     if (currentTool is Pen) {
       (currentTool as Pen).onDragUpdate(position, currentPressure);
@@ -862,6 +953,7 @@ class EditorState extends State<Editor> {
   }
 
   void onDrawEnd(ScaleEndDetails details) {
+    _cancelLoopPress();
     if (dragPageIndex == null) {
       return;
     }
@@ -1646,6 +1738,7 @@ class EditorState extends State<Editor> {
             }
 
             currentTool = tool;
+            _toolBeforeCircleLasso = null;
 
             if (tool is Highlighter) {
               Highlighter.currentHighlighter = tool;
@@ -2241,6 +2334,7 @@ class EditorState extends State<Editor> {
     _delayedSaveTimer?.cancel();
     _watchServerTimer?.cancel();
     _lastSeenPointerCountTimer?.cancel();
+    _loopPressTimer?.cancel();
 
     _removeKeybindings();
 
