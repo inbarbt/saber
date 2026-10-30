@@ -47,6 +47,7 @@ import 'package:saber/data/tools/highlighter.dart';
 import 'package:saber/data/tools/laser_pointer.dart';
 import 'package:saber/data/tools/pen.dart';
 import 'package:saber/data/tools/pencil.dart';
+import 'package:saber/data/tools/scribble_to_erase.dart';
 import 'package:saber/data/tools/select.dart';
 import 'package:saber/data/tools/selection_transform.dart';
 import 'package:saber/data/tools/shape_pen.dart';
@@ -739,11 +740,13 @@ class EditorState extends State<Editor> {
         currentPressure,
       );
       _cancelLoopPress();
-      final loop = CircleToLasso.loopAt(
-        position,
-        page.strokes,
-        _transformationController.value.approxScale,
-      );
+      final loop = stows.circleToLasso.value
+          ? CircleToLasso.loopAt(
+              position,
+              page.strokes,
+              _transformationController.value.approxScale,
+            )
+          : null;
       if (loop != null) {
         _loopPressPosition = position;
         final pageIndex = dragPageIndex!;
@@ -964,6 +967,22 @@ class EditorState extends State<Editor> {
         final newStroke = (currentTool as Pen).onDragEnd();
         if (newStroke == null) return;
         if (newStroke.isEmpty) return;
+
+        if (stows.scribbleToErase.value &&
+            currentTool is! ShapePen &&
+            currentTool is! Highlighter &&
+            ScribbleToErase.isScribble(newStroke.centerline)) {
+          final erased = ScribbleToErase.strokesUnder(newStroke, page.strokes);
+          if (erased.isNotEmpty) {
+            // The scribble itself is never kept.
+            for (final stroke in erased) {
+              page.strokes.remove(stroke);
+            }
+            history.recordChange(HistoricDelete(strokes: erased, images: []));
+            removeExcessPages();
+            return;
+          }
+        }
 
         if (stows.autoStraightenLines.value &&
             currentTool is! ShapePen &&

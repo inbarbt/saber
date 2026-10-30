@@ -546,6 +546,18 @@ class _SettingsPageState extends State<SettingsPage> {
                   icon: Icons.straighten,
                   pref: stows.autoStraightenLines,
                 ),
+                SettingsSwitch(
+                  title: t.settings.prefLabels.scribbleToErase,
+                  subtitle: t.settings.prefDescriptions.scribbleToErase,
+                  icon: Icons.gesture,
+                  pref: stows.scribbleToErase,
+                ),
+                SettingsSwitch(
+                  title: t.settings.prefLabels.circleToLasso,
+                  subtitle: t.settings.prefDescriptions.circleToLasso,
+                  icon: Icons.highlight_alt,
+                  pref: stows.circleToLasso,
+                ),
                 SettingsSubtitle(subtitle: t.settings.prefCategories.advanced),
                 if (isSentryAvailable) const SettingsSentryConsent(),
                 if (Platform.isAndroid)

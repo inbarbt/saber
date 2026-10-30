@@ -725,6 +725,12 @@ class Translations$settings$prefLabels$en {
 	/// en: 'Auto straighten lines'
 	String get autoStraightenLines => 'Auto straighten lines';
 
+	/// en: 'Scribble to erase'
+	String get scribbleToErase => 'Scribble to erase';
+
+	/// en: 'Circle to lasso'
+	String get circleToLasso => 'Circle to lasso';
+
 	/// en: 'Custom Saber folder'
 	String get customDataDir => 'Custom Saber folder';
 
@@ -777,6 +783,12 @@ class Translations$settings$prefDescriptions$en {
 
 	/// en: 'Straightens long lines without having to use the shape pen'
 	String get autoStraightenLines => 'Straightens long lines without having to use the shape pen';
+
+	/// en: 'Scribble back and forth over writing with the pen to erase it'
+	String get scribbleToErase => 'Scribble back and forth over writing with the pen to erase it';
+
+	/// en: 'Draw a loop around something, lift the pen, then press and hold on the loop to select what's inside'
+	String get circleToLasso => 'Draw a loop around something, lift the pen, then press and hold on the loop to select what\'s inside';
 
 	/// en: 'Tell me about updates as soon as they're available'
 	String get shouldAlwaysAlertForUpdates => 'Tell me about updates as soon as they\'re available';

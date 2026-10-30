@@ -171,6 +171,16 @@ class Stows {
     true,
     volatile: !_isOnMainIsolate,
   );
+  final scribbleToErase = PlainStow(
+    'scribbleToErase',
+    true,
+    volatile: !_isOnMainIsolate,
+  );
+  final circleToLasso = PlainStow(
+    'circleToLasso',
+    true,
+    volatile: !_isOnMainIsolate,
+  );
 
   final printPageIndicators = PlainStow(
     'printPageIndicators',

@@ -125,6 +125,8 @@ settings:
     autosave: Auto-save
     shapeRecognitionDelay: Shape recognition delay
     autoStraightenLines: Auto straighten lines
+    scribbleToErase: Scribble to erase
+    circleToLasso: Circle to lasso
     customDataDir: Custom Saber folder
     sentry: Error reporting
   prefDescriptions:
@@ -144,6 +146,8 @@ settings:
     autosave: Auto-save after a short delay, or never
     shapeRecognitionDelay: How often to update the shape preview
     autoStraightenLines: Straightens long lines without having to use the shape pen
+    scribbleToErase: Scribble back and forth over writing with the pen to erase it
+    circleToLasso: Draw a loop around something, lift the pen, then press and hold on the loop to select what's inside
     shouldAlwaysAlertForUpdates: Tell me about updates as soon as they're available
     sentry:
       active: Active
