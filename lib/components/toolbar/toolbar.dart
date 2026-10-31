@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math';
 
 import 'package:collapsible/collapsible.dart';
 import 'package:flutter/cupertino.dart';
@@ -11,7 +12,7 @@ import 'package:material_symbols_icons/symbols.dart';
 import 'package:saber/components/theming/adaptive_icon.dart';
 import 'package:saber/components/theming/dynamic_material_app.dart';
 import 'package:saber/components/theming/uni_icon.dart';
-import 'package:saber/components/toolbar/color_bar.dart';
+import 'package:saber/components/toolbar/color_grid.dart';
 import 'package:saber/components/toolbar/eraser_bar.dart';
 import 'package:saber/components/toolbar/floating_panel.dart';
 import 'package:saber/components/toolbar/pen_modal.dart';
@@ -422,11 +423,10 @@ class _ToolbarState extends State<Toolbar> {
           _ => null,
         },
       ),
-      .colors => ColorBar(
-        axis: Axis.horizontal,
+      .colors => ColorGrid(
         currentColor: currentColor,
         invert: invert,
-        setColor: (color) {
+        onColor: (color) {
           final replace = _replacePreset;
           if (replace != null && presetKind != null) {
             ColorPresets.replace(presetKind, replace, color);
@@ -476,7 +476,7 @@ class _ToolbarState extends State<Toolbar> {
             onTapOutside: _onTapOutsidePanel,
             child: ConstrainedBox(
               constraints: BoxConstraints(
-                maxWidth: MediaQuery.sizeOf(context).width - 16,
+                maxWidth: min(MediaQuery.sizeOf(context).width - 16, 640),
                 maxHeight: MediaQuery.sizeOf(context).height * 0.6,
               ),
               child: FloatingPanel(child: panelChild),

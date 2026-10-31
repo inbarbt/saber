@@ -12,7 +12,9 @@ import 'package:saber/components/canvas/_rectangle_stroke.dart';
 import 'package:saber/data/extensions/list_extensions.dart';
 import 'package:saber/data/extensions/point_extensions.dart';
 import 'package:saber/data/tools/selection_transform.dart';
+import 'package:saber/data/tools/shape_constraints.dart';
 import 'package:saber/data/tools/shape_geometry.dart';
+import 'package:saber/data/tools/shape_library.dart';
 import 'package:sbn/has_size.dart';
 import 'package:sbn/tool_id.dart';
 
@@ -56,6 +58,11 @@ class Stroke {
   /// (turned rectangles, triangles, stars, stretched circles).
   var crisp = false;
 
+  /// Which library shape this is, so dragging a corner keeps it that
+  /// kind of shape (see [ShapeConstraints]). Null for handwriting and
+  /// for hand-drawn shapes other than rectangles.
+  LibraryShape? libraryKind;
+
   /// Whether this is a drawn shape rather than handwriting.
   /// Shapes keep their line thickness when resized.
   bool get isShape => crisp;
@@ -77,6 +84,7 @@ class Stroke {
     if (fillColor != null) 'fil': fillColor!.toARGB32(),
     if (arrowEnd) 'arw': true,
     if (crisp) 'crp': true,
+    if (libraryKind != null) 'lsh': libraryKind!.name,
   };
 
   void readStyle(Map<String, dynamic> json) {
@@ -88,6 +96,9 @@ class Stroke {
     };
     arrowEnd = json['arw'] == true;
     crisp = json['crp'] == true;
+    final kind = json['lsh'];
+    libraryKind = kind is String ? LibraryShape.fromName(kind) : null;
+    if (libraryKind == LibraryShape.auto) libraryKind = null;
   }
 
   /// Copies this stroke's style onto [other] and returns it.
@@ -95,7 +106,8 @@ class Stroke {
     ..dashed = source.dashed
     ..fillColor = source.fillColor
     ..arrowEnd = source.arrowEnd
-    ..crisp = source.crisp;
+    ..crisp = source.crisp
+    ..libraryKind = source.libraryKind;
 
   List<Offset>? _lowQualityPolygon, _highQualityPolygon;
   List<Offset> get lowQualityPolygon =>
@@ -516,7 +528,7 @@ class Stroke {
   /// reshape it. Empty for handwriting.
   /// A closed shape's repeated end point is left out.
   List<Offset> get vertices {
-    if (!crisp) return const [];
+    if (!crisp || !ShapeConstraints.hasVertices(libraryKind)) return const [];
     final line = centerline;
     if (line.length >= 3 && (line.first - line.last).distance < 0.5) {
       return line.sublist(0, line.length - 1);
@@ -524,15 +536,27 @@ class Stroke {
     return line;
   }
 
-  /// A copy of this shape with vertex [index] (see [vertices]) moved to
-  /// [position].
-  Stroke withVertex(int index, Offset position) {
+  /// Where all the corners go when vertex [index] (see [vertices]) is
+  /// dragged to [position], keeping this kind of shape.
+  VertexMove vertexMove(int index, Offset position) =>
+      ShapeConstraints.move(libraryKind, vertices, index, position);
+
+  /// A copy of this shape with vertex [index] (see [vertices]) dragged
+  /// to [position].
+  Stroke withVertex(int index, Offset position) =>
+      withVertices(vertexMove(index, position).vertices);
+
+  /// A copy of this shape with these [corners] (in [vertices] order).
+  Stroke withVertices(List<Offset> corners) {
     final result = copy();
     final closed =
         points.length >= 3 && (points.first - points.last).distance < 0.5;
-    final moved = PointVector(position.dx, position.dy);
-    result.points[index] = moved;
-    if (closed && index == 0) result.points[result.points.length - 1] = moved;
+    result.points
+      ..clear()
+      ..addAll([
+        for (final c in corners) PointVector(c.dx, c.dy),
+        if (closed) PointVector(corners.first.dx, corners.first.dy),
+      ]);
     result.markPolygonNeedsUpdating();
     return result;
   }

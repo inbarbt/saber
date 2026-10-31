@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:perfect_freehand/perfect_freehand.dart';
 import 'package:saber/components/canvas/_stroke.dart';
 import 'package:saber/components/canvas/pencil_shader.dart';
-import 'package:saber/components/toolbar/color_bar.dart';
+import 'package:saber/components/toolbar/color_grid.dart';
 import 'package:saber/components/toolbar/pen_modal.dart';
 import 'package:saber/components/toolbar/selection_bar.dart';
 import 'package:saber/components/toolbar/selection_menu_layout.dart';
@@ -15,6 +15,7 @@ import 'package:saber/data/tools/highlighter.dart';
 import 'package:saber/data/tools/pen.dart';
 import 'package:saber/data/tools/pencil.dart';
 import 'package:saber/data/tools/select.dart';
+import 'package:saber/data/tools/shape_library.dart';
 import 'package:saber/data/tools/shape_pen.dart';
 import 'package:saber/i18n/strings.g.dart';
 import 'package:saber/pages/editor/editor.dart';
@@ -147,7 +148,7 @@ void main() {
       await openEditor(tester, 'longpress');
       await tester.longPress(presetButtons().at(1));
       await tester.pumpAndSettle();
-      expect(find.byType(ColorBar), findsOneWidget);
+      expect(find.byType(ColorGrid), findsOneWidget);
     });
 
     testWidgets('the shapes button switches to shapes and back', (
@@ -237,6 +238,28 @@ void main() {
       final menuTop = tester.getTopLeft(find.byType(SelectionBar)).dy;
       final strokeTop = page.renderBox!.localToGlobal(const Offset(0, 300)).dy;
       expect(menuTop, lessThan(strokeTop));
+    });
+
+    testWidgets('a shape from the library is selected once placed', (
+      tester,
+    ) async {
+      final state = await openEditor(tester, 'autoselect');
+      final page = state.coreInfo.pages.first;
+      stows.shapeKind.value = 'trapezoid';
+      final shapePen = ShapePen();
+      state.currentTool = shapePen;
+      state.dragPageIndex = 0;
+      shapePen.onDragStart(const Offset(100, 100), page, 0, null);
+      shapePen.onDragUpdate(const Offset(200, 150), null);
+      shapePen.onDragUpdate(const Offset(300, 250), null);
+      state.onDrawEnd(.new());
+      await tester.pumpAndSettle();
+
+      expect(state.currentTool, isA<Select>());
+      final selected = Select.currentSelect.selectResult.strokes.single;
+      expect(selected.libraryKind, LibraryShape.trapezoid);
+      expect(page.strokes, contains(selected));
+      stows.shapeKind.value = 'auto';
     });
   });
 }

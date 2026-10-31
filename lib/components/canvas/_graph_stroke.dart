@@ -4,6 +4,7 @@ import 'package:perfect_freehand/perfect_freehand.dart';
 import 'package:saber/components/canvas/_stroke.dart';
 import 'package:saber/data/graph/graph_spec.dart';
 import 'package:saber/data/tools/selection_transform.dart';
+import 'package:saber/data/tools/shape_constraints.dart';
 import 'package:saber/data/tools/shape_geometry.dart';
 import 'package:sbn/has_size.dart';
 
@@ -202,6 +203,10 @@ class GraphStroke extends Stroke {
   List<Offset> get vertices => [
     for (final point in spec.handlePoints()) toPage(point),
   ];
+
+  @override
+  VertexMove vertexMove(int index, Offset position) =>
+      (vertices: vertices..[index] = position, angleAt: null);
 
   @override
   Stroke withVertex(int index, Offset position) =>

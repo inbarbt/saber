@@ -142,6 +142,7 @@ abstract final class ShapeLibrary {
       )
       ..addPoints(points)
       ..crisp = true
-      ..arrowEnd = shape == .arrow;
+      ..arrowEnd = shape == .arrow
+      ..libraryKind = shape;
   }
 }

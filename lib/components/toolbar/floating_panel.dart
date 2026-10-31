@@ -17,9 +17,12 @@ class FloatingPanel extends StatelessWidget {
       shadowColor: Colors.black54,
       borderRadius: BorderRadius.circular(16),
       clipBehavior: Clip.antiAlias,
+      // Scrolls only if the content is taller than the space; otherwise
+      // the panel is exactly as big as its content.
       child: SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Padding(padding: padding, child: child),
+        child: IntrinsicWidth(
+          child: Padding(padding: padding, child: child),
+        ),
       ),
     );
   }

@@ -190,6 +190,9 @@ class SelectResult {
   /// The box turns with the content when it is rotated.
   double frameAngle = 0;
 
+  /// While a corner is being dragged: the angle to show and where.
+  ({Offset at, double degrees})? vertexAngle;
+
   new({
     required this.pageIndex,
     required this.strokes,

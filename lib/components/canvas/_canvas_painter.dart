@@ -501,6 +501,23 @@ class CanvasPainter extends CustomPainter {
       );
     }
 
+    final vertexAngle = selection.vertexAngle;
+    if (vertexAngle != null) {
+      final text = TextPainter(
+        text: TextSpan(
+          text: '${vertexAngle.degrees.round()}°',
+          style: TextStyle(
+            color: primaryColor,
+            fontSize: 16 / scale,
+            fontWeight: .bold,
+            backgroundColor: Colors.white.withValues(alpha: 0.8),
+          ),
+        ),
+        textDirection: .ltr,
+      )..layout();
+      text.paint(canvas, vertexAngle.at + Offset(radius * 1.8, radius * 1.2));
+    }
+
     final degrees = selection.rotationDegrees;
     if (degrees != null) {
       final text = TextPainter(

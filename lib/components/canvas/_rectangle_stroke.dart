@@ -4,6 +4,8 @@ import 'package:one_dollar_unistroke_recognizer/one_dollar_unistroke_recognizer.
 import 'package:perfect_freehand/perfect_freehand.dart';
 import 'package:saber/components/canvas/_stroke.dart';
 import 'package:saber/data/tools/selection_transform.dart';
+import 'package:saber/data/tools/shape_constraints.dart';
+import 'package:saber/data/tools/shape_library.dart';
 import 'package:sbn/has_size.dart';
 
 class RectangleStroke extends Stroke {
@@ -169,15 +171,15 @@ class RectangleStroke extends Stroke {
     rect.bottomLeft,
   ];
 
-  /// Moving a corner makes it a general four-sided shape.
+  /// Dragging a corner keeps it a rectangle; the opposite corner stays.
   @override
-  Stroke withVertex(int index, Offset position) {
-    final polygon = polylineThrough([
-      ...vertices,
-      vertices.first,
-    ], Matrix4.identity());
-    return polygon.withVertex(index, position);
-  }
+  VertexMove vertexMove(int index, Offset position) =>
+      ShapeConstraints.move(LibraryShape.rectangle, vertices, index, position);
+
+  @override
+  Stroke withVertices(List<Offset> corners) =>
+      polylineThrough([...corners, corners.first], Matrix4.identity())
+        ..libraryKind = LibraryShape.rectangle;
 
   @override
   List<PointVector> get erasablePoints => [

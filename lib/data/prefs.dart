@@ -127,7 +127,7 @@ class Stows {
 
   final editorToolbarAlignment = PlainStow(
     'editorToolbarAlignment',
-    AxisDirection.down,
+    AxisDirection.up, // Saber+: top, Saber's default is the bottom
     codec: const EnumCodec(AxisDirection.values),
     volatile: !_isOnMainIsolate,
   );

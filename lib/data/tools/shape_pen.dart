@@ -195,7 +195,8 @@ class ShapePen extends Pen {
         final corners = ShapeGeometry.minAreaRect(rawStroke.centerline);
         if (corners.isNotEmpty && !ShapeGeometry.isUpright(corners)) {
           log.info('Detected turned rectangle');
-          return polygon([...corners, corners.first]);
+          return polygon([...corners, corners.first])
+            ..libraryKind = LibraryShape.rectangle;
         }
         final rect = detected.convertToRect();
         log.info('Detected rectangle: $rect');

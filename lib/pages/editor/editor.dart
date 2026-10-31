@@ -57,6 +57,7 @@ import 'package:saber/data/tools/pencil.dart';
 import 'package:saber/data/tools/scribble_to_erase.dart';
 import 'package:saber/data/tools/select.dart';
 import 'package:saber/data/tools/selection_transform.dart';
+import 'package:saber/data/tools/shape_constraints.dart';
 import 'package:saber/data/tools/shape_pen.dart';
 import 'package:saber/i18n/strings.g.dart';
 import 'package:saber/pages/home/whiteboard.dart';
@@ -687,7 +688,18 @@ class EditorState extends State<Editor> {
   void _updateVertexDrag(Select select, Offset position) {
     final result = select.selectResult;
     final page = coreInfo.pages[result.pageIndex];
-    final next = _vertexOriginal!.withVertex(_vertexIndex!, position);
+    final original = _vertexOriginal!;
+    final move = original.vertexMove(_vertexIndex!, position);
+    final next = original is GraphStroke
+        ? original.withVertex(_vertexIndex!, position)
+        : original.withVertices(move.vertices);
+    final angleAt = move.angleAt;
+    result.vertexAngle = angleAt == null
+        ? null
+        : (
+            at: move.vertices[angleAt],
+            degrees: ShapeConstraints.angleAt(move.vertices, angleAt),
+          );
     final index = page.strokes.indexOf(result.strokes.single);
     if (index != -1) page.strokes[index] = next;
     result.strokes[0] = next;
@@ -699,6 +711,7 @@ class EditorState extends State<Editor> {
   void _endVertexDrag(Select select) {
     final original = _vertexOriginal!;
     final current = select.selectResult.strokes.single;
+    select.selectResult.vertexAngle = null;
     _vertexIndex = null;
     _vertexOriginal = null;
     if (identical(original, current)) return;
@@ -712,6 +725,22 @@ class EditorState extends State<Editor> {
         imageRectsAfter: const [],
       ),
     );
+  }
+
+  void _selectJustPlaced(Stroke stroke) {
+    final select = Select.currentSelect;
+    final box = SelectionTransform.contentBox([stroke], const []);
+    select.selectResult = SelectResult(
+      pageIndex: stroke.pageIndex,
+      strokes: [stroke],
+      images: [],
+      path: Path()..addRect(box?.local ?? Rect.zero),
+      pageIndexStart: stroke.pageIndex,
+    );
+    select.doneSelecting = true;
+    select.selectResult.frameAngle = Select.naturalFrameAngle([stroke], []);
+    _toolBeforeCircleLasso = currentTool;
+    currentTool = select;
   }
 
   /// Whether [position] is on the current selection (inside its box or
@@ -1175,6 +1204,13 @@ class EditorState extends State<Editor> {
         createPage(newStroke.pageIndex);
         page.insertStroke(newStroke);
         history.recordChange(HistoricAdd(strokes: [newStroke], images: []));
+
+        // A shape from the library is selected straight away, so it can
+        // be adjusted. Touching outside it goes back to the shapes tool.
+        if (currentTool is ShapePen &&
+            (newStroke.libraryKind != null || newStroke is GraphStroke)) {
+          _selectJustPlaced(newStroke);
+        }
       } else if (currentTool is Eraser) {
         final eraser = currentTool as Eraser;
         final erased = eraser.onDragEnd();
