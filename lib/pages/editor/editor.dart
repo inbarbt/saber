@@ -19,6 +19,7 @@ import 'package:pdfrx/pdfrx.dart';
 import 'package:saber/components/canvas/_asset_cache.dart';
 import 'package:saber/components/canvas/_circle_stroke.dart';
 import 'package:saber/components/canvas/_graph_stroke.dart';
+import 'package:saber/components/canvas/_rectangle_stroke.dart';
 import 'package:saber/components/canvas/_stroke.dart';
 import 'package:saber/components/canvas/canvas.dart';
 import 'package:saber/components/canvas/canvas_gesture_detector.dart';
@@ -61,6 +62,7 @@ import 'package:saber/data/tools/selection_transform.dart';
 import 'package:saber/data/tools/shape_constraints.dart';
 import 'package:saber/data/tools/shape_library.dart';
 import 'package:saber/data/tools/shape_pen.dart';
+import 'package:saber/data/tools/snap.dart';
 import 'package:saber/i18n/strings.g.dart';
 import 'package:saber/pages/home/whiteboard.dart';
 import 'package:sbn/change.dart';
@@ -691,6 +693,24 @@ class EditorState extends State<Editor> {
     final result = select.selectResult;
     final page = coreInfo.pages[result.pageIndex];
     final original = _vertexOriginal!;
+    final targets = _snapTargets;
+    if (targets != null && original is! GraphStroke) {
+      final corners = original.vertices;
+      final i = _vertexIndex!;
+      final anchor = corners.length == 2
+          ? corners[1 - i]
+          : corners.length >= 3
+          ? corners[(i - 1 + corners.length) % corners.length]
+          : null;
+      final snapped = Snap.point(
+        position,
+        targets,
+        _snapTolerance,
+        anchor: anchor,
+      );
+      position = snapped.value;
+      Snap.showGuides(result.pageIndex, snapped.guides);
+    }
     final move = original.vertexMove(_vertexIndex!, position);
     final next = original is GraphStroke
         ? original.withVertex(_vertexIndex!, position)
@@ -727,6 +747,79 @@ class EditorState extends State<Editor> {
         imageRectsAfter: const [],
       ),
     );
+  }
+
+  /// What other shapes snap to during the current drag, if snapping.
+  SnapFeatures? _snapTargets;
+
+  /// While moving a selection: its own features, what they snap to, and
+  /// how far the pen has moved without snapping.
+  ({SnapFeatures moving, SnapFeatures targets})? _moveSnap;
+  Offset _moveRaw = .zero;
+
+  /// Where the shape being drawn from the library starts.
+  Offset? _shapeDrawStart;
+
+  double get _snapTolerance =>
+      Snap.screenTolerance / _transformationController.value.approxScale;
+
+  bool get _snapsWhileDrawing =>
+      stows.snapToShapes.value &&
+      currentTool is ShapePen &&
+      ShapePen.libraryShape != LibraryShape.auto;
+
+  /// [p] snapped to other shapes, when drawing a shape from the library.
+  /// [anchor] is where the shape started.
+  Offset _snapDrawnPoint(Offset p, Offset? anchor) {
+    final targets = _snapTargets;
+    if (targets == null || !_snapsWhileDrawing) return p;
+    final snapped = Snap.point(p, targets, _snapTolerance, anchor: anchor);
+    Snap.showGuides(dragPageIndex!, snapped.guides);
+    return snapped.value;
+  }
+
+  void _startMoveSnapping(Select select, EditorPage page) {
+    _moveRaw = .zero;
+    if (!stows.snapToShapes.value) {
+      _moveSnap = null;
+      return;
+    }
+    final strokes = select.selectResult.strokes;
+    final images = select.selectResult.images;
+    _moveSnap = (
+      moving: SnapFeatures.of(strokes, images.map((i) => i.dstRect)),
+      targets: SnapFeatures.of(
+        page.strokes.where((s) => !strokes.any((t) => identical(s, t))),
+        page.images
+            .where((i) => !images.any((j) => identical(i, j)))
+            .map((i) => i.dstRect),
+      ),
+    );
+  }
+
+  /// The shape under a tap (a pen stroke that barely moved), if any.
+  Stroke? _shapeTapped(Stroke raw, EditorPage page) {
+    final line = raw.centerline;
+    if (line.isEmpty) return null;
+    final reach = _snapTolerance;
+    if (line.any((p) => (p - line.first).distance > reach)) return null;
+    final at = line.first;
+    Stroke? best;
+    var bestDistance = reach;
+    for (final stroke in page.strokes) {
+      final isShape =
+          stroke.isShape ||
+          stroke is CircleStroke ||
+          stroke is RectangleStroke ||
+          stroke is GraphStroke;
+      if (!isShape) continue;
+      final d = max(0.0, stroke.distanceTo(at) - stroke.options.size / 2);
+      if (d <= bestDistance) {
+        best = stroke;
+        bestDistance = d;
+      }
+    }
+    return best;
   }
 
   void _selectJustPlaced(Stroke stroke) {
@@ -935,8 +1028,13 @@ class EditorState extends State<Editor> {
     }
 
     if (currentTool is Pen) {
+      _snapTargets = _snapsWhileDrawing
+          ? SnapFeatures.of(page.strokes, page.images.map((i) => i.dstRect))
+          : null;
+      final start = _snapDrawnPoint(position, null);
+      _shapeDrawStart = start;
       (currentTool as Pen).onDragStart(
-        position,
+        start,
         page,
         dragPageIndex!,
         currentPressure,
@@ -975,11 +1073,19 @@ class EditorState extends State<Editor> {
           : null;
       if (vertex != null) {
         _vertexIndex = vertex;
-        _vertexOriginal = select.selectResult.strokes.single;
+        final original = select.selectResult.strokes.single;
+        _vertexOriginal = original;
+        _snapTargets = stows.snapToShapes.value
+            ? SnapFeatures.of(
+                page.strokes.where((s) => !identical(s, original)),
+                page.images.map((i) => i.dstRect),
+              )
+            : null;
       } else if (handle != null) {
         _startSelectionTransform(select, handle, position);
       } else if (_isOnSelection(select, position)) {
         // drag selection in onDrawUpdate
+        _startMoveSnapping(select, page);
       } else {
         select.onDragStart(position, dragPageIndex!);
         history.canRedo = true; // selection doesn't affect history
@@ -1015,7 +1121,10 @@ class EditorState extends State<Editor> {
     }
 
     if (currentTool is Pen) {
-      (currentTool as Pen).onDragUpdate(position, currentPressure);
+      (currentTool as Pen).onDragUpdate(
+        _snapDrawnPoint(position, _shapeDrawStart),
+        currentPressure,
+      );
       final holdTolerance =
           (_holdShapeSnapped
               ? _holdShapeReleaseTolerance
@@ -1068,6 +1177,22 @@ class EditorState extends State<Editor> {
             );
             pageOffset = -1;
           }
+        }
+        final moveSnap = _moveSnap;
+        if (moveSnap != null && pageOffset == 0) {
+          _moveRaw += offset;
+          final snapped = Snap.move(
+            moveSnap.moving,
+            moveSnap.targets,
+            _moveRaw,
+            _snapTolerance,
+          );
+          offset = snapped.value - moveOffset;
+          Snap.showGuides(select.selectResult.pageIndex, snapped.guides);
+        } else if (pageOffset != 0) {
+          // Snapping doesn't follow the selection onto another page.
+          _moveSnap = null;
+          Snap.clearGuides();
         }
         for (final stroke in select.selectResult.strokes) {
           stroke.shift(offset);
@@ -1179,6 +1304,10 @@ class EditorState extends State<Editor> {
 
   void onDrawEnd(ScaleEndDetails details) {
     _drawGestureActive = false;
+    Snap.clearGuides();
+    _snapTargets = null;
+    _moveSnap = null;
+    _shapeDrawStart = null;
     _cancelLoopPress();
     _holdShapeTimer?.cancel();
     if (dragPageIndex == null) {
@@ -1188,6 +1317,16 @@ class EditorState extends State<Editor> {
     bool shouldSave = true;
     setState(() {
       if (currentTool is Pen) {
+        // With the shapes tool, tapping a shape selects it for editing.
+        final raw = Pen.currentStroke;
+        final tapped = currentTool is ShapePen && raw != null
+            ? _shapeTapped(raw, page)
+            : null;
+        if (tapped != null) {
+          (currentTool as Pen).onDragEnd();
+          _selectJustPlaced(tapped);
+          return;
+        }
         var newStroke = (currentTool as Pen).onDragEnd();
         final snappedShape = _holdShapeSnapped ? ShapePen.detectedShape : null;
         _resetHoldShape();

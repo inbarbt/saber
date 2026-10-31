@@ -128,6 +128,7 @@ settings:
     holdToDrawShape: Hold to draw shape
     scribbleToErase: Scribble to erase
     circleToLasso: Circle to lasso
+    snapToShapes: Snap to other shapes
     customDataDir: Custom Saber folder
     sentry: Error reporting
   prefDescriptions:
@@ -150,6 +151,7 @@ settings:
     holdToDrawShape: Hold the pen still at the end of a stroke to turn it into a line, rectangle, circle, triangle or star
     scribbleToErase: Scribble back and forth over writing with the pen to erase it
     circleToLasso: Draw a loop around something, lift the pen, then press and hold on the loop to select what's inside
+    snapToShapes: When moving shapes or their corners, or drawing from the shape library, snap to corners, centres, sides and circles of other shapes, line up edges and even out gaps
     shouldAlwaysAlertForUpdates: Tell me about updates as soon as they're available
     sentry:
       active: Active

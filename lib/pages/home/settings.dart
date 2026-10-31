@@ -564,6 +564,12 @@ class _SettingsPageState extends State<SettingsPage> {
                   icon: Icons.highlight_alt,
                   pref: stows.circleToLasso,
                 ),
+                SettingsSwitch(
+                  title: t.settings.prefLabels.snapToShapes,
+                  subtitle: t.settings.prefDescriptions.snapToShapes,
+                  icon: Icons.grid_goldenratio,
+                  pref: stows.snapToShapes,
+                ),
                 SettingsSubtitle(subtitle: t.settings.prefCategories.advanced),
                 if (isSentryAvailable) const SettingsSentryConsent(),
                 if (Platform.isAndroid)

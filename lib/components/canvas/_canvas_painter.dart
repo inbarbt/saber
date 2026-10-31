@@ -17,6 +17,7 @@ import 'package:saber/data/tools/select.dart';
 import 'package:saber/data/tools/selection_transform.dart';
 import 'package:saber/data/tools/shape_geometry.dart';
 import 'package:saber/data/tools/shape_pen.dart';
+import 'package:saber/data/tools/snap.dart';
 
 class CanvasPainter extends CustomPainter {
   const new({
@@ -58,7 +59,39 @@ class CanvasPainter extends CustomPainter {
     _drawCurrentStroke(canvas);
     _drawDetectedShape(canvas);
     _drawSelection(canvas);
+    _drawSnapGuides(canvas);
     _drawPageIndicator(canvas, size);
+  }
+
+  /// What the shape being moved or drawn snapped to.
+  void _drawSnapGuides(Canvas canvas) {
+    if (Snap.guidesPage != pageIndex) return;
+    final scale = currentScale > 0 ? currentScale : 1.0;
+    final paint = Paint()
+      ..color = Colors.pinkAccent
+      ..strokeWidth = 1.5 / scale
+      ..style = PaintingStyle.stroke;
+    final dash = 6 / scale, gap = 4 / scale;
+    for (final guide in Snap.guides) {
+      switch (guide) {
+        case SnapPointGuide(:final at):
+          canvas.drawCircle(at, 7 / scale, paint);
+        case SnapLineGuide(:final from, :final to):
+          final length = (to - from).distance;
+          if (length < 1e-6) {
+            canvas.drawCircle(from, 4 / scale, paint);
+            continue;
+          }
+          final unit = (to - from) / length;
+          for (var d = 0.0; d < length; d += dash + gap) {
+            canvas.drawLine(
+              from + unit * d,
+              from + unit * min(d + dash, length),
+              paint,
+            );
+          }
+      }
+    }
   }
 
   @override

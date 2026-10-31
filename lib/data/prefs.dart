@@ -258,6 +258,11 @@ class Stows {
     true,
     volatile: !_isOnMainIsolate,
   );
+  final snapToShapes = PlainStow(
+    'snapToShapes',
+    true,
+    volatile: !_isOnMainIsolate,
+  );
 
   final printPageIndicators = PlainStow(
     'printPageIndicators',

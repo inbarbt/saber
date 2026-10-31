@@ -134,6 +134,20 @@ class _PenModalState<T extends Pen> extends State<PenModal<T>> {
       ],
     );
 
+    if (pen is ShapePen) {
+      return Column(
+        mainAxisSize: .min,
+        crossAxisAlignment: .start,
+        spacing: 4,
+        children: [
+          row,
+          _GestureChip(
+            label: t.settings.prefLabels.snapToShapes,
+            stow: stows.snapToShapes,
+          ),
+        ],
+      );
+    }
     if (!isWritingPen) return row;
     return Column(
       mainAxisSize: .min,
