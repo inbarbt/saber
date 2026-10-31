@@ -355,14 +355,21 @@ class CanvasPainter extends CustomPainter {
   /// Returns false if there's no box to draw (e.g. still lassoing).
   bool _drawSelectionBox(Canvas canvas) {
     final selection = currentSelection!;
+    // Previews are drawn without a real zoom level
+    if (currentScale < 0.01) {
+      return SelectionTransform.contentBox(
+            selection.strokes,
+            selection.images,
+          ) !=
+          null;
+    }
     final box = SelectionTransform.contentBox(
       selection.strokes,
       selection.images,
       angle: selection.frameAngle,
+      padding: SelectionTransform.boxPadding / currentScale,
     );
     if (box == null) return false;
-    // Previews are drawn without a real zoom level
-    if (currentScale < 0.01) return true;
 
     final scale = currentScale;
     final handles = SelectionTransform.handlePositions(box, scale);
@@ -398,6 +405,23 @@ class CanvasPainter extends CustomPainter {
         handle == .rotate ? (Paint()..color = primaryColor) : fillPaint,
       );
       canvas.drawCircle(center, radius, linePaint);
+    }
+
+    // Corners of a single straight-sided shape can be dragged.
+    final vertexPaint = Paint()..color = primaryColor;
+    for (final vertex in SelectionTransform.editableVertices(
+      selection.strokes,
+      selection.images,
+    )) {
+      canvas.drawCircle(vertex, radius * 0.8, vertexPaint);
+      canvas.drawCircle(
+        vertex,
+        radius * 0.8,
+        Paint()
+          ..color = Colors.white
+          ..style = .stroke
+          ..strokeWidth = 2 / scale,
+      );
     }
 
     final degrees = selection.rotationDegrees;

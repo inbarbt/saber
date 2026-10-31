@@ -160,7 +160,13 @@ class ShapePen extends Pen {
       case DefaultUnistrokeNames.triangle:
       case DefaultUnistrokeNames.star:
         log.info('Detected ${detected.name}');
-        return polygon(detected.convertToCanonicalPolygon());
+        final corners = detected.convertToCanonicalPolygon();
+        // Make sure the outline closes, so the last side is drawn.
+        if (corners.length >= 3 &&
+            (corners.first - corners.last).distance > 0.5) {
+          corners.add(corners.first);
+        }
+        return polygon(corners);
     }
   }
 }

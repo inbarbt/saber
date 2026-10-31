@@ -77,6 +77,10 @@ abstract final class SelectionTransform {
   static const handleRadius = 9.0;
   static const handleHitRadius = 28.0;
 
+  /// Space between the content and its box, in screen pixels, so the
+  /// box's corner handles don't sit on a shape's own corners.
+  static const boxPadding = 12.0;
+
   /// Distance of the rotate handle above the box, in screen pixels.
   static const rotateHandleOffset = 40.0;
 
@@ -95,6 +99,7 @@ abstract final class SelectionTransform {
     List<Stroke> strokes,
     List<EditorImage> images, {
     double angle = 0,
+    double padding = 0,
   }) {
     final points = <Offset>[
       for (final stroke in strokes)
@@ -118,7 +123,39 @@ abstract final class SelectionTransform {
       maxX = max(maxX, p.dx);
       maxY = max(maxY, p.dy);
     }
-    return SelectionBox(Rect.fromLTRB(minX, minY, maxX, maxY), angle);
+    return SelectionBox(
+      Rect.fromLTRB(minX, minY, maxX, maxY).inflate(padding),
+      angle,
+    );
+  }
+
+  /// The corners that can be dragged when exactly one straight-sided
+  /// shape is selected, or empty.
+  static List<Offset> editableVertices(
+    List<Stroke> strokes,
+    List<EditorImage> images,
+  ) {
+    if (strokes.length != 1 || images.isNotEmpty) return const [];
+    return strokes.single.vertices;
+  }
+
+  /// The index of the vertex under [position], if any.
+  static int? hitTestVertex(
+    Offset position,
+    List<Offset> vertices,
+    double scale,
+  ) {
+    final hitRadius = handleHitRadius / scale;
+    int? best;
+    var bestDistance = double.infinity;
+    for (int i = 0; i < vertices.length; i++) {
+      final distance = (vertices[i] - position).distance;
+      if (distance <= hitRadius && distance < bestDistance) {
+        best = i;
+        bestDistance = distance;
+      }
+    }
+    return best;
   }
 
   /// Where each handle sits, in page coordinates.

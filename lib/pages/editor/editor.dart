@@ -649,7 +649,60 @@ class EditorState extends State<Editor> {
         result.strokes,
         result.images,
         angle: result.frameAngle,
+        padding:
+            SelectionTransform.boxPadding /
+            _transformationController.value.approxScale,
       );
+
+  /// Dragging a corner of a straight-sided shape: which corner, and the
+  /// shape as it was when the drag started. Null when not dragging one.
+  int? _vertexIndex;
+  Stroke? _vertexOriginal;
+
+  int? _vertexAt(Select select, Offset position) {
+    if (!select.doneSelecting) return null;
+    if (select.selectResult.pageIndex != dragPageIndex) return null;
+    final vertices = SelectionTransform.editableVertices(
+      select.selectResult.strokes,
+      select.selectResult.images,
+    );
+    if (vertices.isEmpty) return null;
+    return SelectionTransform.hitTestVertex(
+      position,
+      vertices,
+      _transformationController.value.approxScale,
+    );
+  }
+
+  void _updateVertexDrag(Select select, Offset position) {
+    final result = select.selectResult;
+    final page = coreInfo.pages[result.pageIndex];
+    final next = _vertexOriginal!.withVertex(_vertexIndex!, position);
+    final index = page.strokes.indexOf(result.strokes.single);
+    if (index != -1) page.strokes[index] = next;
+    result.strokes[0] = next;
+    result.path = Path()
+      ..addPolygon(next.outlinePoints(), true)
+      ..close();
+  }
+
+  void _endVertexDrag(Select select) {
+    final original = _vertexOriginal!;
+    final current = select.selectResult.strokes.single;
+    _vertexIndex = null;
+    _vertexOriginal = null;
+    if (identical(original, current)) return;
+    history.recordChange(
+      HistoricTransform(
+        pageIndex: select.selectResult.pageIndex,
+        before: [original],
+        after: [current],
+        images: const [],
+        imageRectsBefore: const [],
+        imageRectsAfter: const [],
+      ),
+    );
+  }
 
   /// Whether [position] is on the current selection (inside its box or
   /// its lasso), so a drag there moves the selection.
@@ -808,6 +861,7 @@ class EditorState extends State<Editor> {
     if (currentTool is Select && _toolBeforeCircleLasso != null) {
       final select = currentTool as Select;
       final onSelection =
+          _vertexAt(select, position) != null ||
           _selectionHandleAt(select, position) != null ||
           _isOnSelection(select, position);
       if (!onSelection) {
@@ -852,8 +906,14 @@ class EditorState extends State<Editor> {
       removeExcessPages();
     } else if (currentTool is Select) {
       final select = currentTool as Select;
-      final handle = _selectionHandleAt(select, position);
-      if (handle != null) {
+      final vertex = _vertexAt(select, position);
+      final handle = vertex == null
+          ? _selectionHandleAt(select, position)
+          : null;
+      if (vertex != null) {
+        _vertexIndex = vertex;
+        _vertexOriginal = select.selectResult.strokes.single;
+      } else if (handle != null) {
         _startSelectionTransform(select, handle, position);
       } else if (_isOnSelection(select, position)) {
         // drag selection in onDrawUpdate
@@ -909,6 +969,11 @@ class EditorState extends State<Editor> {
       _erase(currentTool as Eraser, page, position);
       page.redrawStrokes();
       removeExcessPages();
+    } else if (currentTool is Select && _vertexIndex != null) {
+      _updateVertexDrag(currentTool as Select, position);
+      page.redrawStrokes();
+      previousPosition = position;
+      return;
     } else if (currentTool is Select && _transformHandle != null) {
       _updateSelectionTransform(currentTool as Select, position);
       page.redrawStrokes();
@@ -1105,6 +1170,8 @@ class EditorState extends State<Editor> {
         }
         if (erased.isEmpty) return;
         history.recordChange(HistoricDelete(strokes: erased, images: []));
+      } else if (currentTool is Select && _vertexIndex != null) {
+        _endVertexDrag(currentTool as Select);
       } else if (currentTool is Select && _transformHandle != null) {
         _endSelectionTransform(currentTool as Select);
       } else if (currentTool is Select) {

@@ -162,6 +162,24 @@ class RectangleStroke extends Stroke {
   bool get isShape => true;
 
   @override
+  List<Offset> get vertices => [
+    rect.topLeft,
+    rect.topRight,
+    rect.bottomRight,
+    rect.bottomLeft,
+  ];
+
+  /// Moving a corner makes it a general four-sided shape.
+  @override
+  Stroke withVertex(int index, Offset position) {
+    final polygon = polylineThrough([
+      ...vertices,
+      vertices.first,
+    ], Matrix4.identity());
+    return polygon.withVertex(index, position);
+  }
+
+  @override
   List<PointVector> get erasablePoints => [
     for (final corner in [
       rect.topLeft,

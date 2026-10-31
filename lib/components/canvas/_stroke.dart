@@ -494,6 +494,31 @@ class Stroke {
   /// Shapes return their outline.
   List<PointVector> get erasablePoints => points;
 
+  /// The corners of a straight-sided shape, which can be dragged to
+  /// reshape it. Empty for handwriting.
+  /// A closed shape's repeated end point is left out.
+  List<Offset> get vertices {
+    if (!crisp) return const [];
+    final line = centerline;
+    if (line.length >= 3 && (line.first - line.last).distance < 0.5) {
+      return line.sublist(0, line.length - 1);
+    }
+    return line;
+  }
+
+  /// A copy of this shape with vertex [index] (see [vertices]) moved to
+  /// [position].
+  Stroke withVertex(int index, Offset position) {
+    final result = copy();
+    final closed =
+        points.length >= 3 && (points.first - points.last).distance < 0.5;
+    final moved = PointVector(position.dx, position.dy);
+    result.points[index] = moved;
+    if (closed && index == 0) result.points[result.points.length - 1] = moved;
+    result.markPolygonNeedsUpdating();
+    return result;
+  }
+
   /// Points along the stroke no more than [step] apart, for hit tests.
   /// Shapes are stored as a few corners; this fills in their sides.
   List<Offset> outlinePoints({double step = 4}) {
