@@ -6,7 +6,6 @@ import 'package:saber/components/canvas/_rectangle_stroke.dart';
 import 'package:saber/components/canvas/_stroke.dart';
 import 'package:saber/data/prefs.dart';
 import 'package:saber/data/tools/_tool.dart';
-import 'package:saber/data/tools/shape_geometry.dart';
 import 'package:sbn/tool_id.dart';
 
 double square(double x) => x * x;
@@ -128,10 +127,7 @@ class Eraser extends Tool {
     // check the distance to the sides themselves.
     if (stroke.isShape) {
       final reach = sqrt(sqrSize) + stroke.options.size / 2;
-      return ShapeGeometry.distanceToPolyline(eraserPos, [
-            for (final point in stroke.erasablePoints) point,
-          ]) <=
-          reach;
+      return stroke.distanceTo(eraserPos) <= reach;
     }
 
     if (stroke.length <= 3) {

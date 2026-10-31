@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:perfect_freehand/perfect_freehand.dart';
 import 'package:saber/components/canvas/_circle_stroke.dart';
+import 'package:saber/components/canvas/_graph_stroke.dart';
 import 'package:saber/components/canvas/_rectangle_stroke.dart';
 import 'package:saber/components/canvas/_stroke.dart';
 import 'package:saber/components/canvas/pencil_shader.dart';
@@ -13,6 +14,7 @@ import 'package:saber/data/editor/editor_exporter.dart';
 import 'package:saber/data/editor/page.dart';
 import 'package:saber/data/file_manager/file_manager.dart';
 import 'package:saber/data/flavor_config.dart';
+import 'package:saber/data/graph/graph_spec.dart';
 import 'package:saber/i18n/strings.g.dart';
 
 import 'utils/test_mock_channel_handlers.dart';
@@ -83,6 +85,26 @@ void main() {
           Offset(100, 400),
         ])
         ..fillColor = const Color(0x4000FF00),
+      GraphStroke(
+        color: Colors.black,
+        pressureEnabled: false,
+        options: options(),
+        pageIndex: 0,
+        page: page,
+        toolId: .shapePen,
+        frame: const Rect.fromLTWH(500, 300, 400, 400),
+        spec: const GraphSpec(formula: '1/x'),
+      ),
+      GraphStroke(
+        color: Colors.purple,
+        pressureEnabled: false,
+        options: options(),
+        pageIndex: 0,
+        page: page,
+        toolId: .shapePen,
+        frame: const Rect.fromLTWH(500, 750, 400, 300),
+        spec: const GraphSpec(template: GraphTemplate.tangent),
+      ),
     ]);
 
     final completer = Completer<BuildContext>();

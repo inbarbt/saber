@@ -7,10 +7,12 @@ import 'package:logging/logging.dart';
 import 'package:one_dollar_unistroke_recognizer/one_dollar_unistroke_recognizer.dart';
 import 'package:perfect_freehand/perfect_freehand.dart';
 import 'package:saber/components/canvas/_circle_stroke.dart';
+import 'package:saber/components/canvas/_graph_stroke.dart';
 import 'package:saber/components/canvas/_rectangle_stroke.dart';
 import 'package:saber/data/extensions/list_extensions.dart';
 import 'package:saber/data/extensions/point_extensions.dart';
 import 'package:saber/data/tools/selection_transform.dart';
+import 'package:saber/data/tools/shape_geometry.dart';
 import 'package:sbn/has_size.dart';
 import 'package:sbn/tool_id.dart';
 
@@ -59,6 +61,15 @@ class Stroke {
   bool get isShape => crisp;
 
   bool get hasStyle => dashed || fillColor != null || arrowEnd || crisp;
+
+  /// Whether lassoing inside this shape (not only across its outline)
+  /// selects it.
+  bool get pickedFromInside => fillColor != null;
+
+  /// Distance from [point] to the drawn line, for erasing shapes.
+  double distanceTo(Offset point) => ShapeGeometry.distanceToPolyline(point, [
+    for (final p in erasablePoints) p,
+  ]);
 
   /// Saved form of [dashed], [fillColor] and [arrowEnd].
   Map<String, dynamic> get styleJson => {
@@ -142,6 +153,13 @@ class Stroke {
         );
       case 'rect':
         return RectangleStroke.fromJson(
+          json,
+          fileVersion: fileVersion,
+          pageIndex: pageIndex,
+          page: page,
+        );
+      case 'graph':
+        return GraphStroke.fromJson(
           json,
           fileVersion: fileVersion,
           pageIndex: pageIndex,

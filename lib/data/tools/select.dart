@@ -139,7 +139,7 @@ class Select extends Tool {
   bool _lassoTouches(Stroke stroke) {
     final path = selectResult.path;
     if (stroke.outlinePoints().any(path.contains)) return true;
-    if (_lassoPoints.isEmpty || stroke.fillColor == null) return false;
+    if (_lassoPoints.isEmpty || !stroke.pickedFromInside) return false;
     if (!stroke.isClosedShape) return false;
     final area = Path()..addPolygon(stroke.outlinePoints(), true);
     return _lassoPoints.any(area.contains);

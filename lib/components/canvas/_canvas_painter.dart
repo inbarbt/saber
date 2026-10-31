@@ -6,6 +6,7 @@ import 'package:one_dollar_unistroke_recognizer/one_dollar_unistroke_recognizer.
 import 'package:path_drawing/path_drawing.dart';
 import 'package:perfect_freehand/perfect_freehand.dart';
 import 'package:saber/components/canvas/_circle_stroke.dart';
+import 'package:saber/components/canvas/_graph_stroke.dart';
 import 'package:saber/components/canvas/_rectangle_stroke.dart';
 import 'package:saber/components/canvas/_stroke.dart';
 import 'package:saber/data/editor/page.dart';
@@ -142,7 +143,9 @@ class CanvasPainter extends CustomPainter {
         ..strokeCap = .round
         ..strokeJoin = .round;
 
-      if (stroke is CircleStroke) {
+      if (stroke is GraphStroke) {
+        _drawGraph(canvas, stroke, shapePaint);
+      } else if (stroke is CircleStroke) {
         _drawStyledOutline(
           canvas,
           stroke,
@@ -186,6 +189,64 @@ class CanvasPainter extends CustomPainter {
         canvas.drawPath(_selectPath(stroke), paint);
       }
     }
+  }
+
+  /// Draws a function graph: axes, dashed asymptotes and the curve,
+  /// clipped to its frame.
+  void _drawGraph(Canvas canvas, GraphStroke graph, Paint curvePaint) {
+    final drawing = graph.drawing;
+    final size = graph.options.size;
+    canvas.save();
+    canvas.clipRect(graph.frame.inflate(size * 2));
+
+    final axisPaint = Paint()
+      ..color = curvePaint.color.withValues(alpha: curvePaint.color.a * 0.75)
+      ..style = .stroke
+      ..strokeWidth = max(size * 0.5, 1)
+      ..strokeCap = .round;
+    for (final (from, to) in drawing.axes) {
+      canvas.drawLine(from, to, axisPaint);
+      final head = ShapeGeometry.arrowhead([from, to], axisPaint.strokeWidth);
+      if (head != null) {
+        for (final (a, b) in head) {
+          canvas.drawLine(a, b, axisPaint);
+        }
+      }
+    }
+
+    final asymptotePaint = Paint()
+      ..color = axisPaint.color
+      ..style = .stroke
+      ..strokeWidth = axisPaint.strokeWidth;
+    for (final (from, to) in drawing.asymptotes) {
+      final dash = max(size * 2, 4.0);
+      canvas.drawPath(
+        dashPath(
+          Path()
+            ..moveTo(from.dx, from.dy)
+            ..lineTo(to.dx, to.dy),
+          dashArray: CircularIntervalList([dash, dash]),
+        ),
+        asymptotePaint,
+      );
+    }
+
+    canvas.clipRect(graph.frame);
+    for (final piece in drawing.curve) {
+      final path = Path()..addPolygon(piece, false);
+      if (graph.dashed) {
+        canvas.drawPath(
+          dashPath(
+            path,
+            dashArray: CircularIntervalList([size * 3, size * 2.5]),
+          ),
+          curvePaint,
+        );
+      } else {
+        canvas.drawPath(path, curvePaint);
+      }
+    }
+    canvas.restore();
   }
 
   /// Draws [path] for [stroke] with its fill and dash style.

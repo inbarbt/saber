@@ -10,6 +10,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:pool/pool.dart';
 import 'package:saber/components/canvas/_circle_stroke.dart';
+import 'package:saber/components/canvas/_graph_stroke.dart';
 import 'package:saber/components/canvas/_rectangle_stroke.dart';
 import 'package:saber/components/canvas/_stroke.dart';
 import 'package:saber/components/canvas/canvas_preview.dart';
@@ -143,6 +144,43 @@ abstract class EditorExporter {
                         strokeSize / 4,
                         strokeSize / 4,
                       );
+                    }
+
+                    if (stroke is GraphStroke) {
+                      final drawing = stroke.drawing;
+                      pdfGraphics.saveContext();
+                      final f = stroke.frame;
+                      pdfGraphics.drawRect(
+                        f.left,
+                        pageHeight - f.bottom,
+                        f.width,
+                        f.height,
+                      );
+                      pdfGraphics.clipPath();
+                      final thin = max(stroke.options.size * 0.5, 1.0);
+                      for (final (from, to) in drawing.axes) {
+                        polyline([from, to]);
+                        for (final (a, b)
+                            in ShapeGeometry.arrowhead([from, to], thin) ??
+                                const <(Offset, Offset)>[]) {
+                          polyline([a, b]);
+                        }
+                      }
+                      pdfGraphics.setStrokeColor(strokeColor);
+                      pdfGraphics.setLineWidth(thin);
+                      pdfGraphics.strokePath();
+                      for (final (from, to) in drawing.asymptotes) {
+                        polyline([from, to]);
+                      }
+                      pdfGraphics.setLineDashPattern([thin * 4, thin * 4]);
+                      pdfGraphics.strokePath();
+                      pdfGraphics.setLineDashPattern();
+                      for (final piece in drawing.curve) {
+                        polyline(piece);
+                      }
+                      outline();
+                      pdfGraphics.restoreContext();
+                      continue;
                     }
 
                     if (stroke is CircleStroke || stroke is RectangleStroke) {
