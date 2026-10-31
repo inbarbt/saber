@@ -17,6 +17,7 @@ import 'package:logging/logging.dart';
 import 'package:path/path.dart' as p;
 import 'package:pdfrx/pdfrx.dart';
 import 'package:saber/components/canvas/_asset_cache.dart';
+import 'package:saber/components/canvas/_graph_stroke.dart';
 import 'package:saber/components/canvas/_stroke.dart';
 import 'package:saber/components/canvas/canvas.dart';
 import 'package:saber/components/canvas/canvas_gesture_detector.dart';
@@ -31,6 +32,7 @@ import 'package:saber/components/theming/saber_theme.dart';
 import 'package:saber/components/toolbar/color_bar.dart';
 import 'package:saber/components/toolbar/editor_bottom_sheet.dart';
 import 'package:saber/components/toolbar/editor_page_manager.dart';
+import 'package:saber/components/toolbar/graph_editor.dart';
 import 'package:saber/components/toolbar/toolbar.dart';
 import 'package:saber/data/editor/editor_core_info.dart';
 import 'package:saber/data/editor/editor_exporter.dart';
@@ -1882,6 +1884,69 @@ class EditorState extends State<Editor> {
     return counts.entries.reduce((a, b) => a.value >= b.value ? a : b).key;
   }
 
+  /// The graph selected on its own, if any.
+  GraphStroke? get _selectedGraph {
+    final tool = currentTool;
+    if (tool is! Select || !tool.doneSelecting) return null;
+    final result = tool.selectResult;
+    if (result.strokes.length != 1 || result.images.isNotEmpty) return null;
+    return switch (result.strokes.single) {
+      final GraphStroke graph => graph,
+      _ => null,
+    };
+  }
+
+  /// Opens the graph editor for the selected graph, and applies the
+  /// changes when it closes (one undo step).
+  Future<void> editSelectedGraph() async {
+    final graph = _selectedGraph;
+    if (graph == null) return;
+    var spec = graph.spec;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => SafeArea(
+        child: SingleChildScrollView(
+          padding: EdgeInsets.fromLTRB(
+            16,
+            16,
+            16,
+            16 + MediaQuery.viewInsetsOf(context).bottom,
+          ),
+          child: GraphSpecEditor(
+            initial: spec,
+            onChanged: (changed) => spec = changed,
+          ),
+        ),
+      ),
+    );
+    if (!mounted || spec == graph.spec) return;
+
+    final select = currentTool as Select;
+    setState(() {
+      final page = coreInfo.pages[graph.pageIndex];
+      final edited = graph.copy()..spec = spec;
+      final index = page.strokes.indexOf(graph);
+      if (index != -1) page.strokes[index] = edited;
+      if (select.selectResult.strokes.isNotEmpty &&
+          identical(select.selectResult.strokes.single, graph)) {
+        select.selectResult.strokes[0] = edited;
+      }
+      history.recordChange(
+        HistoricTransform(
+          pageIndex: graph.pageIndex,
+          before: [graph],
+          after: [edited],
+          images: const [],
+          imageRectsBefore: const [],
+          imageRectsAfter: const [],
+        ),
+      );
+      page.redrawStrokes();
+      autosaveAfterDelay();
+    });
+  }
+
   /// Copies the current selection to Saber+'s own clipboard.
   void copySelection() {
     final select = currentTool as Select;
@@ -2168,6 +2233,7 @@ class EditorState extends State<Editor> {
           },
           currentTool: currentTool,
           copySelection: copySelection,
+          editGraph: _selectedGraph != null ? editSelectedGraph : null,
           getSelectionSize: () => selectionSize,
           getSelectionStyle: () => selectionStyle,
           setSelectionStyle: setSelectionStyle,

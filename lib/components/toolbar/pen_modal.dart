@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
+import 'package:saber/components/toolbar/graph_editor.dart';
 import 'package:saber/components/toolbar/size_picker.dart';
 import 'package:saber/data/extensions/axis_extensions.dart';
+import 'package:saber/data/graph/graph_spec.dart';
+import 'package:saber/data/graph/new_graph.dart';
 import 'package:saber/data/prefs.dart';
 import 'package:saber/data/tools/highlighter.dart';
 import 'package:saber/data/tools/pen.dart';
@@ -262,6 +265,7 @@ class _ShapePicker extends StatelessWidget {
       .trapezoid => s.trapezoid,
       .polygon => s.polygon,
       .star => s.star,
+      .graph => s.graph,
     };
   }
 
@@ -278,12 +282,19 @@ class _ShapePicker extends StatelessWidget {
   void _showPicker(BuildContext context) {
     showModalBottomSheet<void>(
       context: context,
+      // Tall enough for the graph editor, and clear of the keyboard
+      isScrollControlled: true,
       builder: (context) => SafeArea(
         child: StatefulBuilder(
           builder: (context, setSheetState) {
             final current = ShapePen.libraryShape;
-            return Padding(
-              padding: const .all(16),
+            return SingleChildScrollView(
+              padding: EdgeInsets.fromLTRB(
+                16,
+                16,
+                16,
+                16 + MediaQuery.viewInsetsOf(context).bottom,
+              ),
               child: Column(
                 mainAxisSize: .min,
                 children: [
@@ -304,6 +315,13 @@ class _ShapePicker extends StatelessWidget {
                         ),
                     ],
                   ),
+                  if (current == .graph) ...[
+                    const SizedBox(height: 12),
+                    GraphSpecEditor(
+                      initial: NewGraph.spec,
+                      onChanged: (spec) => NewGraph.spec = spec,
+                    ),
+                  ],
                   if (current == .polygon) ...[
                     const SizedBox(height: 12),
                     Text(
@@ -382,6 +400,22 @@ class _ShapeIcon extends StatelessWidget {
     final color =
         IconTheme.of(context).color ?? ColorScheme.of(context).onSurface;
     if (shape == .auto) return Icon(Icons.auto_awesome, color: color);
+    if (shape == .graph) {
+      return CustomPaint(
+        size: const Size.square(24),
+        painter: GraphPreviewPainter(
+          const GraphSpec(
+            template: GraphTemplate.hyperbola,
+            xMin: -3,
+            xMax: 3,
+            yMin: -3,
+            yMax: 3,
+          ),
+          color,
+          strokeWidth: 1.6,
+        ),
+      );
+    }
     return CustomPaint(
       size: const Size.square(24),
       painter: _ShapeIconPainter(shape, color, stows.shapeCorners.value),

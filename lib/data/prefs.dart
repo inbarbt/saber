@@ -193,6 +193,13 @@ class Stows {
     volatile: !_isOnMainIsolate,
   );
   final penDashed = PlainStow('penDashed', false, volatile: !_isOnMainIsolate);
+
+  /// The graph the shape pen draws next, as saved JSON. Empty for 1/x.
+  final newGraphSpec = PlainStow<String>(
+    'newGraphSpec',
+    '',
+    volatile: !_isOnMainIsolate,
+  );
   final shapeKind = PlainStow<String>(
     'shapeKind',
     'auto',

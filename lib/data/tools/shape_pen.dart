@@ -5,8 +5,10 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:logging/logging.dart';
 import 'package:one_dollar_unistroke_recognizer/one_dollar_unistroke_recognizer.dart';
 import 'package:saber/components/canvas/_circle_stroke.dart';
+import 'package:saber/components/canvas/_graph_stroke.dart';
 import 'package:saber/components/canvas/_rectangle_stroke.dart';
 import 'package:saber/components/canvas/_stroke.dart';
+import 'package:saber/data/graph/new_graph.dart';
 import 'package:saber/data/prefs.dart';
 import 'package:saber/data/tools/pen.dart';
 import 'package:saber/data/tools/shape_geometry.dart';
@@ -92,6 +94,7 @@ class ShapePen extends Pen {
       ShapePen.detectedShape = null;
       final rawStroke = super.onDragEnd();
       if (rawStroke == null) return null;
+      if (library == .graph) return graphFor(rawStroke);
       final shape = ShapeLibrary.strokeFor(
         rawStroke,
         library,
@@ -118,6 +121,26 @@ class ShapePen extends Pen {
     return applyShapeStyle(
       result,
       isLine: detectedShape?.name == DefaultUnistrokeNames.line,
+    );
+  }
+
+  /// A graph of the function chosen in the shape picker, in the box from
+  /// the drag's first point to its last. Tiny drags get a default size.
+  static Stroke graphFor(Stroke rawStroke) {
+    final line = rawStroke.centerline;
+    var frame = Rect.fromPoints(line.first, line.last);
+    if (frame.width < 40 || frame.height < 40) {
+      frame = Rect.fromCenter(center: frame.center, width: 300, height: 240);
+    }
+    return GraphStroke(
+      color: rawStroke.color,
+      pressureEnabled: false,
+      options: rawStroke.options.copyWith(isComplete: true),
+      pageIndex: rawStroke.pageIndex,
+      page: rawStroke.page,
+      toolId: rawStroke.toolId,
+      frame: frame,
+      spec: NewGraph.spec,
     );
   }
 

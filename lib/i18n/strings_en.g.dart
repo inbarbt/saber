@@ -309,6 +309,7 @@ class Translations$editor$en {
 	late final Translations$editor$penOptions$en penOptions = Translations$editor$penOptions$en.internal(_root);
 	late final Translations$editor$colors$en colors = Translations$editor$colors$en.internal(_root);
 	late final Translations$editor$imageOptions$en imageOptions = Translations$editor$imageOptions$en.internal(_root);
+	late final Translations$editor$graph$en graph = Translations$editor$graph$en.internal(_root);
 	late final Translations$editor$shapeLibrary$en shapeLibrary = Translations$editor$shapeLibrary$en.internal(_root);
 	late final Translations$editor$shapeStyle$en shapeStyle = Translations$editor$shapeStyle$en.internal(_root);
 	late final Translations$editor$penFeel$en penFeel = Translations$editor$penFeel$en.internal(_root);
@@ -1265,6 +1266,33 @@ class Translations$editor$imageOptions$en {
 	String get delete => 'Delete';
 }
 
+// Path: editor.graph
+class Translations$editor$graph$en {
+	Translations$editor$graph$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Graph'
+	String get title => 'Graph';
+
+	/// en: 'Edit graph'
+	String get edit => 'Edit graph';
+
+	/// en: 'Formula'
+	String get formula => 'Formula';
+
+	/// en: 'Can't read this formula'
+	String get invalidFormula => 'Can\'t read this formula';
+
+	/// en: 'Axes'
+	String get axes => 'Axes';
+
+	/// en: 'Asymptotes'
+	String get asymptotes => 'Asymptotes';
+}
+
 // Path: editor.shapeLibrary
 class Translations$editor$shapeLibrary$en {
 	Translations$editor$shapeLibrary$en.internal(this._root);
@@ -1272,6 +1300,9 @@ class Translations$editor$shapeLibrary$en {
 	final Translations _root; // ignore: unused_field
 
 	// Translations
+
+	/// en: 'Graph of a function'
+	String get graph => 'Graph of a function';
 
 	/// en: 'Recognise what I draw'
 	String get auto => 'Recognise what I draw';

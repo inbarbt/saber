@@ -17,7 +17,8 @@ enum LibraryShape {
   parallelogram,
   trapezoid,
   polygon,
-  star;
+  star,
+  graph;
 
   static LibraryShape fromName(String? name) =>
       values.firstWhere((s) => s.name == name, orElse: () => auto);
@@ -94,6 +95,9 @@ abstract final class ShapeLibrary {
               r.center.dy + r.height / 2 * sin(-pi / 2 + 2 * pi * i / n),
             ),
         ]);
+      case .graph:
+        // Previewed as its frame; the graph itself is a GraphStroke.
+        return closed([r.topLeft, r.topRight, r.bottomRight, r.bottomLeft]);
       case .star:
         return closed([
           for (int i = 0; i < 10; i++)

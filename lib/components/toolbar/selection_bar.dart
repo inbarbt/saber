@@ -13,6 +13,9 @@ class SelectionBar extends StatelessWidget {
   /// Null hides the paste button (nothing to paste).
   final VoidCallback? pasteSelection;
 
+  /// Null hides the edit-graph button (no single graph selected).
+  final VoidCallback? editGraph;
+
   /// The selection's current thickness, or null if nothing is selected.
   final double? Function()? getSelectionSize;
   final ValueChanged<double>? setSelectionSize;
@@ -29,6 +32,7 @@ class SelectionBar extends StatelessWidget {
     this.copySelection,
     this.cutSelection,
     this.pasteSelection,
+    this.editGraph,
     this.getSelectionSize,
     this.setSelectionSize,
     this.getSelectionStyle,
@@ -141,6 +145,12 @@ class SelectionBar extends StatelessWidget {
             onPressed: pasteSelection!,
             tooltip: t.editor.selectionBar.paste,
             icon: Icons.content_paste,
+          ),
+        if (editGraph != null)
+          _SelectionBarButton(
+            onPressed: editGraph!,
+            tooltip: t.editor.graph.edit,
+            icon: Icons.functions,
           ),
         if (getSelectionStyle != null && setSelectionStyle != null)
           _SelectionBarButton(

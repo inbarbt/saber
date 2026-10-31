@@ -329,7 +329,15 @@ editor:
     setAsBackground: Set as background
     removeAsBackground: Remove as background
     delete: Delete
+  graph:
+    title: Graph
+    edit: Edit graph
+    formula: Formula
+    invalidFormula: Can't read this formula
+    axes: Axes
+    asymptotes: Asymptotes
   shapeLibrary:
+    graph: Graph of a function
     auto: Recognise what I draw
     line: Line
     arrow: Arrow

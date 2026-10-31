@@ -52,6 +52,7 @@ class Toolbar extends StatefulWidget {
     this.copySelection,
     this.cutSelection,
     this.pasteSelection,
+    this.editGraph,
     this.getSelectionSize,
     this.setSelectionSize,
     this.getSelectionStyle,
@@ -87,6 +88,7 @@ class Toolbar extends StatefulWidget {
   final VoidCallback? copySelection;
   final VoidCallback? cutSelection;
   final VoidCallback? pasteSelection;
+  final VoidCallback? editGraph;
   final double? Function()? getSelectionSize;
   final ValueChanged<double>? setSelectionSize;
   final ({bool dashed, bool filled, bool arrow})? Function()? getSelectionStyle;
@@ -275,6 +277,7 @@ class _ToolbarState extends State<Toolbar> {
                 copySelection: widget.copySelection,
                 cutSelection: widget.cutSelection,
                 pasteSelection: widget.pasteSelection,
+                editGraph: widget.editGraph,
                 getSelectionSize: widget.getSelectionSize,
                 setSelectionSize: widget.setSelectionSize,
                 getSelectionStyle: widget.getSelectionStyle,
