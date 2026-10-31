@@ -7,6 +7,7 @@ import 'package:saber/data/prefs.dart';
 import 'package:saber/data/tools/highlighter.dart';
 import 'package:saber/data/tools/pen.dart';
 import 'package:saber/data/tools/pencil.dart';
+import 'package:saber/data/tools/shape_library.dart';
 import 'package:saber/data/tools/shape_pen.dart';
 import 'package:saber/i18n/strings.g.dart';
 
@@ -83,6 +84,7 @@ class _PenModalState<T extends Pen> extends State<PenModal<T>> {
         ],
 
         if (pen is ShapePen) ...[
+          _ShapePicker(onChanged: () => setState(() {})),
           _StyleToggle(
             value: stows.shapeDashed.value,
             onPressed: () => setState(
@@ -236,4 +238,191 @@ class const _StyleToggle({
       icon: Icon(icon),
     );
   }
+}
+
+/// Chooses what the shape pen draws: a recognised shape, or a shape from
+/// the library dragged out as a box.
+class _ShapePicker extends StatelessWidget {
+  const new({required this.onChanged});
+
+  final VoidCallback onChanged;
+
+  static String label(LibraryShape shape) {
+    final s = t.editor.shapeLibrary;
+    return switch (shape) {
+      .auto => s.auto,
+      .line => s.line,
+      .arrow => s.arrow,
+      .rectangle => s.rectangle,
+      .ellipse => s.ellipse,
+      .triangle => s.triangle,
+      .rightTriangle => s.rightTriangle,
+      .rhombus => s.rhombus,
+      .parallelogram => s.parallelogram,
+      .trapezoid => s.trapezoid,
+      .polygon => s.polygon,
+      .star => s.star,
+    };
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final current = ShapePen.libraryShape;
+    return IconButton(
+      tooltip: label(current),
+      onPressed: () => _showPicker(context),
+      icon: _ShapeIcon(shape: current),
+    );
+  }
+
+  void _showPicker(BuildContext context) {
+    showModalBottomSheet<void>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: StatefulBuilder(
+          builder: (context, setSheetState) {
+            final current = ShapePen.libraryShape;
+            return Padding(
+              padding: const .all(16),
+              child: Column(
+                mainAxisSize: .min,
+                children: [
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    alignment: .center,
+                    children: [
+                      for (final shape in LibraryShape.values)
+                        _ShapeOption(
+                          shape: shape,
+                          selected: shape == current,
+                          onTap: () {
+                            stows.shapeKind.value = shape.name;
+                            setSheetState(() {});
+                            onChanged();
+                          },
+                        ),
+                    ],
+                  ),
+                  if (current == .polygon) ...[
+                    const SizedBox(height: 12),
+                    Text(
+                      '${t.editor.shapeLibrary.corners}: '
+                      '${stows.shapeCorners.value}',
+                    ),
+                    Slider(
+                      value: stows.shapeCorners.value.toDouble(),
+                      min: ShapeLibrary.minCorners.toDouble(),
+                      max: ShapeLibrary.maxCorners.toDouble(),
+                      divisions:
+                          ShapeLibrary.maxCorners - ShapeLibrary.minCorners,
+                      onChanged: (v) {
+                        stows.shapeCorners.value = v.round();
+                        setSheetState(() {});
+                        onChanged();
+                      },
+                    ),
+                  ],
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _ShapeOption extends StatelessWidget {
+  const new({required this.shape, required this.selected, required this.onTap});
+
+  final LibraryShape shape;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = ColorScheme.of(context);
+    return Tooltip(
+      message: _ShapePicker.label(shape),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          width: 56,
+          height: 56,
+          alignment: .center,
+          decoration: BoxDecoration(
+            color: selected
+                ? colorScheme.secondary.withValues(alpha: 0.15)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: selected
+                  ? colorScheme.secondary
+                  : colorScheme.outlineVariant,
+            ),
+          ),
+          child: _ShapeIcon(shape: shape),
+        ),
+      ),
+    );
+  }
+}
+
+/// A small drawing of a library shape, made from the same outline the
+/// shape pen draws.
+class _ShapeIcon extends StatelessWidget {
+  const new({required this.shape});
+
+  final LibraryShape shape;
+
+  @override
+  Widget build(BuildContext context) {
+    final color =
+        IconTheme.of(context).color ?? ColorScheme.of(context).onSurface;
+    if (shape == .auto) return Icon(Icons.auto_awesome, color: color);
+    return CustomPaint(
+      size: const Size.square(24),
+      painter: _ShapeIconPainter(shape, color, stows.shapeCorners.value),
+    );
+  }
+}
+
+class _ShapeIconPainter extends CustomPainter {
+  new(this.shape, this.color, this.corners);
+
+  final LibraryShape shape;
+  final Color color;
+  final int corners;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final inset = size.width * 0.12;
+    final start = Offset(inset, inset);
+    final end = Offset(size.width - inset, size.height - inset);
+    final points = shape == .line || shape == .arrow
+        ? [
+            Offset(inset, size.height / 2),
+            Offset(size.width - inset, size.height / 2),
+          ]
+        : ShapeLibrary.outline(shape, start, end, corners: corners);
+    if (points.length < 2) return;
+    final paint = Paint()
+      ..color = color
+      ..style = .stroke
+      ..strokeWidth = 1.8
+      ..strokeJoin = .round
+      ..strokeCap = .round;
+    canvas.drawPath(Path()..addPolygon(points, false), paint);
+    if (shape == .arrow) {
+      final tip = points.last;
+      canvas.drawLine(tip, tip + const Offset(-6, -5), paint);
+      canvas.drawLine(tip, tip + const Offset(-6, 5), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_ShapeIconPainter old) =>
+      old.shape != shape || old.color != color || old.corners != corners;
 }

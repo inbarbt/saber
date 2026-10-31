@@ -329,6 +329,20 @@ editor:
     setAsBackground: Set as background
     removeAsBackground: Remove as background
     delete: Delete
+  shapeLibrary:
+    auto: Recognise what I draw
+    line: Line
+    arrow: Arrow
+    rectangle: Rectangle
+    ellipse: Ellipse
+    triangle: Triangle
+    rightTriangle: Right triangle
+    rhombus: Rhombus
+    parallelogram: Parallelogram
+    trapezoid: Trapezoid
+    polygon: Regular polygon
+    star: Star
+    corners: Corners
   shapeStyle:
     title: Style
     dashed: Dashed line

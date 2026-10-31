@@ -193,6 +193,16 @@ class Stows {
     volatile: !_isOnMainIsolate,
   );
   final penDashed = PlainStow('penDashed', false, volatile: !_isOnMainIsolate);
+  final shapeKind = PlainStow<String>(
+    'shapeKind',
+    'auto',
+    volatile: !_isOnMainIsolate,
+  );
+  final shapeCorners = PlainStow(
+    'shapeCorners',
+    6,
+    volatile: !_isOnMainIsolate,
+  );
   final shapeDashed = PlainStow(
     'shapeDashed',
     false,

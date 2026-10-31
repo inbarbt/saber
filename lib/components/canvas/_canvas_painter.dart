@@ -227,6 +227,8 @@ class CanvasPainter extends CustomPainter {
 
   void _drawCurrentStroke(Canvas canvas) {
     if (currentStroke == null) return;
+    // While dragging out a library shape, only its preview is shown.
+    if (ShapePen.libraryPreview != null) return;
 
     if (currentStroke! is LaserStroke) {
       return _drawLaserStroke(canvas, currentStroke as LaserStroke);
@@ -282,6 +284,20 @@ class CanvasPainter extends CustomPainter {
   }
 
   void _drawDetectedShape(Canvas canvas) {
+    final preview = ShapePen.libraryPreview;
+    if (preview != null && preview.length >= 2) {
+      final color = currentStroke?.color.withInversion(invert) ?? Colors.black;
+      canvas.drawPath(
+        Path()..addPolygon(preview, false),
+        Paint()
+          ..color = Color.lerp(color, primaryColor, 0.5)!.withValues(alpha: 0.7)
+          ..style = .stroke
+          ..strokeJoin = .round
+          ..strokeWidth = currentStroke?.options.size ?? 3,
+      );
+      return;
+    }
+
     final shape = ShapePen.detectedShape;
     if (shape == null) return;
 

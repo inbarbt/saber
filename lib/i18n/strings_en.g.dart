@@ -309,6 +309,7 @@ class Translations$editor$en {
 	late final Translations$editor$penOptions$en penOptions = Translations$editor$penOptions$en.internal(_root);
 	late final Translations$editor$colors$en colors = Translations$editor$colors$en.internal(_root);
 	late final Translations$editor$imageOptions$en imageOptions = Translations$editor$imageOptions$en.internal(_root);
+	late final Translations$editor$shapeLibrary$en shapeLibrary = Translations$editor$shapeLibrary$en.internal(_root);
 	late final Translations$editor$shapeStyle$en shapeStyle = Translations$editor$shapeStyle$en.internal(_root);
 	late final Translations$editor$penFeel$en penFeel = Translations$editor$penFeel$en.internal(_root);
 	late final Translations$editor$eraserBar$en eraserBar = Translations$editor$eraserBar$en.internal(_root);
@@ -1262,6 +1263,54 @@ class Translations$editor$imageOptions$en {
 
 	/// en: 'Delete'
 	String get delete => 'Delete';
+}
+
+// Path: editor.shapeLibrary
+class Translations$editor$shapeLibrary$en {
+	Translations$editor$shapeLibrary$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Recognise what I draw'
+	String get auto => 'Recognise what I draw';
+
+	/// en: 'Line'
+	String get line => 'Line';
+
+	/// en: 'Arrow'
+	String get arrow => 'Arrow';
+
+	/// en: 'Rectangle'
+	String get rectangle => 'Rectangle';
+
+	/// en: 'Ellipse'
+	String get ellipse => 'Ellipse';
+
+	/// en: 'Triangle'
+	String get triangle => 'Triangle';
+
+	/// en: 'Right triangle'
+	String get rightTriangle => 'Right triangle';
+
+	/// en: 'Rhombus'
+	String get rhombus => 'Rhombus';
+
+	/// en: 'Parallelogram'
+	String get parallelogram => 'Parallelogram';
+
+	/// en: 'Trapezoid'
+	String get trapezoid => 'Trapezoid';
+
+	/// en: 'Regular polygon'
+	String get polygon => 'Regular polygon';
+
+	/// en: 'Star'
+	String get star => 'Star';
+
+	/// en: 'Corners'
+	String get corners => 'Corners';
 }
 
 // Path: editor.shapeStyle

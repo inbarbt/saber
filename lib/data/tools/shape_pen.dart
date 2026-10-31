@@ -10,6 +10,7 @@ import 'package:saber/components/canvas/_stroke.dart';
 import 'package:saber/data/prefs.dart';
 import 'package:saber/data/tools/pen.dart';
 import 'package:saber/data/tools/shape_geometry.dart';
+import 'package:saber/data/tools/shape_library.dart';
 import 'package:saber/i18n/strings.g.dart';
 
 class ShapePen extends Pen {
@@ -31,6 +32,14 @@ class ShapePen extends Pen {
   static const shapePenIcon = FontAwesomeIcons.shapes;
 
   static RecognizedUnistroke? detectedShape;
+
+  /// The library shape chosen in the shape pen panel, or [LibraryShape.auto]
+  /// to recognise what's drawn.
+  static LibraryShape get libraryShape =>
+      LibraryShape.fromName(stows.shapeKind.value);
+
+  /// Outline of the library shape being dragged out, for the preview.
+  static List<Offset>? libraryPreview;
   void _detectShape() {
     detectedShape = Pen.currentStroke?.detectShape();
   }
@@ -51,6 +60,20 @@ class ShapePen extends Pen {
   void onDragUpdate(Offset position, double? pressure) {
     super.onDragUpdate(position, pressure);
 
+    final library = libraryShape;
+    if (library != .auto) {
+      final line = Pen.currentStroke?.centerline ?? const [];
+      libraryPreview = line.isEmpty
+          ? null
+          : ShapeLibrary.outline(
+              library,
+              line.first,
+              position,
+              corners: stows.shapeCorners.value,
+            );
+      return;
+    }
+
     final isPreviewEnabled = debounceDuration < const Duration(hours: 1);
     final isTimerActive = _detectShapeDebouncer?.isActive ?? false;
     if (isPreviewEnabled && !isTimerActive) {
@@ -62,6 +85,24 @@ class ShapePen extends Pen {
   Stroke? onDragEnd() {
     _detectShapeDebouncer?.cancel();
     _detectShapeDebouncer = null;
+    libraryPreview = null;
+
+    final library = libraryShape;
+    if (library != .auto) {
+      ShapePen.detectedShape = null;
+      final rawStroke = super.onDragEnd();
+      if (rawStroke == null) return null;
+      final shape = ShapeLibrary.strokeFor(
+        rawStroke,
+        library,
+        corners: stows.shapeCorners.value,
+      );
+      return applyShapeStyle(
+        shape,
+        isLine: library == .line || library == .arrow,
+      );
+    }
+
     _detectShape();
 
     final rawStroke = super.onDragEnd();
