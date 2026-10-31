@@ -1111,6 +1111,30 @@ class Translations$editor$toolbar$en {
 
 	/// en: 'Toggle fullscreen (F11)'
 	String get fullscreen => 'Toggle fullscreen (F11)';
+
+	/// en: 'Pen'
+	String get pen => 'Pen';
+
+	/// en: 'Shapes'
+	String get shapes => 'Shapes';
+
+	/// en: 'Insert'
+	String get insert => 'Insert';
+
+	/// en: 'Function graph'
+	String get graph => 'Function graph';
+
+	/// en: 'Paste'
+	String get paste => 'Paste';
+
+	/// en: 'More'
+	String get more => 'More';
+
+	/// en: 'More colors'
+	String get colors => 'More colors';
+
+	/// en: 'Change this color'
+	String get changePreset => 'Change this color';
 }
 
 // Path: editor.pens

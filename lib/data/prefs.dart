@@ -194,6 +194,24 @@ class Stows {
   );
   final penDashed = PlainStow('penDashed', false, volatile: !_isOnMainIsolate);
 
+  /// The five colors next to the active tool in the toolbar, as ARGB
+  /// integers in strings. Empty means the defaults in ColorPresets.
+  final presetColorsPen = PlainStow(
+    'presetColorsPen',
+    <String>[],
+    volatile: !_isOnMainIsolate,
+  );
+  final presetColorsHighlighter = PlainStow(
+    'presetColorsHighlighter',
+    <String>[],
+    volatile: !_isOnMainIsolate,
+  );
+  final presetColorsShape = PlainStow(
+    'presetColorsShape',
+    <String>[],
+    volatile: !_isOnMainIsolate,
+  );
+
   /// The graph the shape pen draws next, as saved JSON. Empty for 1/x.
   final newGraphSpec = PlainStow<String>(
     'newGraphSpec',

@@ -32,7 +32,10 @@ import 'package:saber/components/theming/saber_theme.dart';
 import 'package:saber/components/toolbar/color_bar.dart';
 import 'package:saber/components/toolbar/editor_bottom_sheet.dart';
 import 'package:saber/components/toolbar/editor_page_manager.dart';
+import 'package:saber/components/toolbar/floating_panel.dart';
 import 'package:saber/components/toolbar/graph_editor.dart';
+import 'package:saber/components/toolbar/selection_bar.dart';
+import 'package:saber/components/toolbar/selection_menu_layout.dart';
 import 'package:saber/components/toolbar/toolbar.dart';
 import 'package:saber/data/editor/editor_core_info.dart';
 import 'package:saber/data/editor/editor_exporter.dart';
@@ -858,7 +861,12 @@ class EditorState extends State<Editor> {
 
   static const changePageThreshold = 50.0;
 
+  /// Whether the pen or a finger is drawing or dragging on the page.
+  /// The floating selection menu hides meanwhile.
+  var _drawGestureActive = false;
+
   void onDrawStart(ScaleStartDetails details) {
+    _drawGestureActive = true;
     final page = coreInfo.pages[dragPageIndex!];
     final position = page.renderBox!.globalToLocal(details.focalPoint);
     history.canRedo = false;
@@ -1122,6 +1130,7 @@ class EditorState extends State<Editor> {
   }
 
   void onDrawEnd(ScaleEndDetails details) {
+    _drawGestureActive = false;
     _cancelLoopPress();
     _holdShapeTimer?.cancel();
     if (dragPageIndex == null) {
@@ -2232,81 +2241,9 @@ class EditorState extends State<Editor> {
             if (mounted) setState(() {});
           },
           currentTool: currentTool,
-          copySelection: copySelection,
-          editGraph: _selectedGraph != null ? editSelectedGraph : null,
-          getSelectionSize: () => selectionSize,
-          getSelectionStyle: () => selectionStyle,
-          setSelectionStyle: setSelectionStyle,
-          setSelectionSize: setSelectionSize,
-          cutSelection: cutSelection,
-          pasteSelection: StrokeClipboard.isNotEmpty
+          pasteStrokes: StrokeClipboard.isNotEmpty
               ? pasteFromStrokeClipboard
               : null,
-          duplicateSelection: () {
-            final select = currentTool as Select;
-            if (!select.doneSelecting) return;
-
-            setState(() {
-              final page = coreInfo.pages[select.selectResult.pageIndex];
-              final strokes = select.selectResult.strokes;
-              final images = select.selectResult.images;
-
-              const duplicationFeedbackOffset = Offset(25, -25);
-
-              final duplicatedStrokes = strokes.map((stroke) {
-                return stroke.copy()..shift(duplicationFeedbackOffset);
-              }).toList();
-
-              final duplicatedImages = images.map((image) {
-                return image.copy()
-                  ..id = coreInfo.nextImageId++
-                  ..dstRect.shift(duplicationFeedbackOffset);
-              }).toList();
-
-              page.strokes.addAll(duplicatedStrokes);
-              page.images.addAll(duplicatedImages);
-
-              select.selectResult = select.selectResult.copyWith(
-                strokes: duplicatedStrokes,
-                images: duplicatedImages,
-                path: select.selectResult.path.shift(duplicationFeedbackOffset),
-              );
-
-              history.recordChange(
-                HistoricAdd(
-                  strokes: duplicatedStrokes,
-                  images: duplicatedImages,
-                ),
-              );
-              autosaveAfterDelay();
-            });
-          },
-          deleteSelection: () {
-            final select = currentTool as Select;
-            if (!select.doneSelecting) {
-              return;
-            }
-
-            setState(() {
-              final page = coreInfo.pages[select.selectResult.pageIndex];
-              final strokes = select.selectResult.strokes;
-              final images = select.selectResult.images;
-
-              for (final stroke in strokes) {
-                page.strokes.remove(stroke);
-              }
-              for (final image in images) {
-                page.images.remove(image);
-              }
-
-              select.unselect();
-
-              history.recordChange(
-                HistoricDelete(strokes: strokes, images: images),
-              );
-              autosaveAfterDelay();
-            });
-          },
           setColor: (color) {
             setState(() {
               updateColorBar(color);
@@ -2379,6 +2316,14 @@ class EditorState extends State<Editor> {
       ),
     );
 
+    final canvasWithMenu = Stack(
+      key: _canvasStackKey,
+      children: [
+        canvas,
+        Positioned.fill(child: _floatingSelectionMenu()),
+      ],
+    );
+
     final Widget body;
     if (isToolbarVertical) {
       body = Row(
@@ -2390,7 +2335,7 @@ class EditorState extends State<Editor> {
           Expanded(
             child: Column(
               children: [
-                Expanded(child: canvas),
+                Expanded(child: canvasWithMenu),
                 readonlyBanner,
               ],
             ),
@@ -2404,7 +2349,7 @@ class EditorState extends State<Editor> {
             ? VerticalDirection.up
             : VerticalDirection.down,
         children: [
-          Expanded(child: canvas),
+          Expanded(child: canvasWithMenu),
           toolbar,
           readonlyBanner,
         ],
@@ -2523,6 +2468,127 @@ class EditorState extends State<Editor> {
               )
             : null,
       ),
+    );
+  }
+
+  void duplicateSelection() {
+    final select = currentTool;
+    if (select is! Select || !select.doneSelecting) return;
+
+    setState(() {
+      final page = coreInfo.pages[select.selectResult.pageIndex];
+      final strokes = select.selectResult.strokes;
+      final images = select.selectResult.images;
+
+      const duplicationFeedbackOffset = Offset(25, -25);
+
+      final duplicatedStrokes = strokes.map((stroke) {
+        return stroke.copy()..shift(duplicationFeedbackOffset);
+      }).toList();
+
+      final duplicatedImages = images.map((image) {
+        return image.copy()
+          ..id = coreInfo.nextImageId++
+          ..dstRect.shift(duplicationFeedbackOffset);
+      }).toList();
+
+      page.strokes.addAll(duplicatedStrokes);
+      page.images.addAll(duplicatedImages);
+
+      select.selectResult = select.selectResult.copyWith(
+        strokes: duplicatedStrokes,
+        images: duplicatedImages,
+        path: select.selectResult.path.shift(duplicationFeedbackOffset),
+      );
+
+      history.recordChange(
+        HistoricAdd(strokes: duplicatedStrokes, images: duplicatedImages),
+      );
+      autosaveAfterDelay();
+    });
+  }
+
+  void deleteSelection() {
+    final select = currentTool;
+    if (select is! Select || !select.doneSelecting) return;
+
+    setState(() {
+      final page = coreInfo.pages[select.selectResult.pageIndex];
+      final strokes = select.selectResult.strokes;
+      final images = select.selectResult.images;
+
+      for (final stroke in strokes) {
+        page.strokes.remove(stroke);
+      }
+      for (final image in images) {
+        page.images.remove(image);
+      }
+
+      select.unselect();
+
+      history.recordChange(HistoricDelete(strokes: strokes, images: images));
+      autosaveAfterDelay();
+    });
+  }
+
+  final _canvasStackKey = GlobalKey();
+
+  /// The selection's actions, floating just above the selection
+  /// (or below it, if there's no room above).
+  Widget _floatingSelectionMenu() {
+    return AnimatedBuilder(
+      animation: _transformationController,
+      builder: (context, _) {
+        final select = currentTool;
+        if (select is! Select || !select.doneSelecting || _drawGestureActive) {
+          return const SizedBox.shrink();
+        }
+        final result = select.selectResult;
+        if (result.strokes.isEmpty && result.images.isEmpty) {
+          return const SizedBox.shrink();
+        }
+        final box = _selectionBox(result);
+        final pageBox = coreInfo.pages[result.pageIndex].renderBox;
+        final stackBox =
+            _canvasStackKey.currentContext?.findRenderObject() as RenderBox?;
+        if (box == null ||
+            pageBox == null ||
+            stackBox == null ||
+            !pageBox.attached ||
+            !stackBox.hasSize) {
+          return const SizedBox.shrink();
+        }
+        final corners = [
+          for (final corner in box.corners)
+            stackBox.globalToLocal(pageBox.localToGlobal(corner)),
+        ];
+        final anchor = Rect.fromPoints(corners.first, corners.first)
+            .expandToInclude(Rect.fromPoints(corners[1], corners[2]))
+            .expandToInclude(Rect.fromPoints(corners[3], corners[3]));
+        return CustomSingleChildLayout(
+          delegate: SelectionMenuLayout(anchor),
+          child: TapRegion(
+            groupId: Toolbar.tapGroup,
+            child: FloatingPanel(
+              padding: const .symmetric(horizontal: 4, vertical: 2),
+              child: SelectionBar(
+                duplicateSelection: duplicateSelection,
+                deleteSelection: deleteSelection,
+                copySelection: copySelection,
+                cutSelection: cutSelection,
+                pasteSelection: StrokeClipboard.isNotEmpty
+                    ? pasteFromStrokeClipboard
+                    : null,
+                editGraph: _selectedGraph != null ? editSelectedGraph : null,
+                getSelectionSize: () => selectionSize,
+                setSelectionSize: setSelectionSize,
+                getSelectionStyle: () => selectionStyle,
+                setSelectionStyle: setSelectionStyle,
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 

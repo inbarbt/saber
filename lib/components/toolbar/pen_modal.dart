@@ -13,6 +13,7 @@ import 'package:saber/data/tools/pencil.dart';
 import 'package:saber/data/tools/shape_library.dart';
 import 'package:saber/data/tools/shape_pen.dart';
 import 'package:saber/i18n/strings.g.dart';
+import 'package:stow_plain/stow_plain.dart';
 
 class PenModal<T extends Pen> extends StatefulWidget {
   const new({super.key, required this.getTool, required this.setTool});
@@ -34,16 +35,17 @@ class _PenModalState<T extends Pen> extends State<PenModal<T>> {
     final axis = stows.editorToolbarAlignment.value.axis.opposite;
     final pen = widget.getTool();
 
-    return Flex(
+    final isWritingPen = pen is! Highlighter && pen is! ShapePen;
+    final row = Flex(
       direction: axis,
       mainAxisAlignment: .center,
       spacing: 8,
       children: [
         SizePicker(axis: axis, pen: pen),
 
-        if (pen is! Highlighter && pen is! Pencil) ...[
+        if (isWritingPen) ...[
           _PenSelector(
-            isSelected: Pen.currentPen.icon == Pen.fountainPenIcon,
+            isSelected: pen is! Pencil && pen.icon == Pen.fountainPenIcon,
             onPressed: () => setState(() {
               widget.setTool(Pen.fountainPen());
             }),
@@ -53,14 +55,14 @@ class _PenModalState<T extends Pen> extends State<PenModal<T>> {
               width: 32,
               height: 32 / 508 * 374,
               theme: SvgTheme(
-                currentColor: Pen.currentPen.icon == Pen.fountainPenIcon
+                currentColor: pen is! Pencil && pen.icon == Pen.fountainPenIcon
                     ? ColorScheme.of(context).secondary
                     : ColorScheme.of(context).onSurface,
               ),
             ),
           ),
           _PenSelector(
-            isSelected: Pen.currentPen.icon == Pen.ballpointPenIcon,
+            isSelected: pen is! Pencil && pen.icon == Pen.ballpointPenIcon,
             onPressed: () => setState(() {
               widget.setTool(Pen.ballpointPen());
             }),
@@ -70,19 +72,19 @@ class _PenModalState<T extends Pen> extends State<PenModal<T>> {
               width: 32,
               height: 32 / 508 * 374,
               theme: SvgTheme(
-                currentColor: Pen.currentPen.icon == Pen.ballpointPenIcon
+                currentColor: pen is! Pencil && pen.icon == Pen.ballpointPenIcon
                     ? ColorScheme.of(context).secondary
                     : ColorScheme.of(context).onSurface,
               ),
             ),
           ),
           _PenSelector(
-            isSelected: Pen.currentPen.icon == ShapePen.shapePenIcon,
+            isSelected: pen is Pencil,
             onPressed: () => setState(() {
-              widget.setTool(ShapePen());
+              widget.setTool(Pencil.currentPencil);
             }),
-            tooltip: t.editor.pens.shapePen,
-            icon: const FaIcon(ShapePen.shapePenIcon),
+            tooltip: t.editor.pens.pencil,
+            icon: const FaIcon(Pencil.pencilIcon),
           ),
         ],
 
@@ -129,6 +131,33 @@ class _PenModalState<T extends Pen> extends State<PenModal<T>> {
             tooltip: t.editor.penFeel.title,
             icon: const Icon(Icons.tune),
           ),
+      ],
+    );
+
+    if (!isWritingPen) return row;
+    return Column(
+      mainAxisSize: .min,
+      crossAxisAlignment: .start,
+      spacing: 4,
+      children: [
+        row,
+        Wrap(
+          spacing: 8,
+          children: [
+            _GestureChip(
+              label: t.settings.prefLabels.holdToDrawShape,
+              stow: stows.holdToDrawShape,
+            ),
+            _GestureChip(
+              label: t.settings.prefLabels.circleToLasso,
+              stow: stows.circleToLasso,
+            ),
+            _GestureChip(
+              label: t.settings.prefLabels.scribbleToErase,
+              stow: stows.scribbleToErase,
+            ),
+          ],
+        ),
       ],
     );
   }
@@ -459,4 +488,24 @@ class _ShapeIconPainter extends CustomPainter {
   @override
   bool shouldRepaint(_ShapeIconPainter old) =>
       old.shape != shape || old.color != color || old.corners != corners;
+}
+
+/// Turns a pen gesture on or off. The same setting is in the app settings.
+class _GestureChip extends StatelessWidget {
+  const new({required this.label, required this.stow});
+
+  final String label;
+  final PlainStow<bool> stow;
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder(
+      valueListenable: stow,
+      builder: (context, value, _) => FilterChip(
+        label: Text(label),
+        selected: value,
+        onSelected: (selected) => stow.value = selected,
+      ),
+    );
+  }
 }

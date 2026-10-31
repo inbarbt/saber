@@ -286,6 +286,14 @@ editor:
     export: Export (Ctrl Shift S)
     exportAs: "Export as:"
     fullscreen: Toggle fullscreen (F11)
+    pen: Pen
+    shapes: Shapes
+    insert: Insert
+    graph: Function graph
+    paste: Paste
+    more: More
+    colors: More colors
+    changePreset: Change this color
   pens:
     fountainPen: Fountain pen
     ballpointPen: Ballpoint pen
