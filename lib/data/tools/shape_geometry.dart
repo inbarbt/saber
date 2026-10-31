@@ -116,6 +116,31 @@ abstract final class ShapeGeometry {
     ];
   }
 
+  /// Shortest distance from [p] to the polyline through [points].
+  static double distanceToPolyline(Offset p, List<Offset> points) {
+    if (points.isEmpty) return double.infinity;
+    if (points.length == 1) return (p - points.first).distance;
+    var best = double.infinity;
+    for (int i = 0; i < points.length - 1; i++) {
+      final a = points[i], b = points[i + 1];
+      final ab = b - a;
+      final lengthSquared = ab.distanceSquared;
+      final double distance;
+      if (lengthSquared == 0) {
+        distance = (p - a).distance;
+      } else {
+        final ap = p - a;
+        final t = ((ap.dx * ab.dx + ap.dy * ab.dy) / lengthSquared).clamp(
+          0.0,
+          1.0,
+        );
+        distance = (p - (a + ab * t)).distance;
+      }
+      best = min(best, distance);
+    }
+    return best;
+  }
+
   /// Whether a rectangle with these [corners] is close enough to upright.
   static bool isUpright(List<Offset> corners) =>
       rectTurnDegrees(corners).abs() < uprightToleranceDegrees;

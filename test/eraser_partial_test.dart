@@ -82,4 +82,62 @@ void main() {
     expect(reversed.removed.single, same(b));
     expect(reversed.added.single, same(a));
   });
+
+  group('whole-stroke erasing of shapes:', () {
+    test('touching the middle of a long side erases a rectangle', () {
+      final rect = RectangleStroke(
+        color: Colors.black,
+        pressureEnabled: false,
+        options: StrokeOptions(size: 2),
+        pageIndex: 0,
+        page: page,
+        toolId: .shapePen,
+        rect: const Rect.fromLTWH(0, 0, 400, 200),
+      );
+      final eraser = Eraser();
+      expect(eraser.checkForOverlappingStrokes(const Offset(173, 3), [rect]), [
+        rect,
+      ]);
+    });
+
+    test('touching the middle of a triangle side erases it', () {
+      final triangle =
+          Stroke(
+              color: Colors.black,
+              pressureEnabled: false,
+              options: StrokeOptions(size: 2, isComplete: true),
+              pageIndex: 0,
+              page: page,
+              toolId: .shapePen,
+            )
+            ..addPoints(const [
+              Offset.zero,
+              Offset(400, 0),
+              Offset(200, 300),
+              Offset.zero,
+            ])
+            ..crisp = true;
+      final eraser = Eraser();
+      expect(
+        eraser.checkForOverlappingStrokes(const Offset(300, 155), [triangle]),
+        [triangle],
+      );
+    });
+
+    test('the inside of an unfilled shape is not its outline', () {
+      final rect = RectangleStroke(
+        color: Colors.black,
+        pressureEnabled: false,
+        options: StrokeOptions(size: 2),
+        pageIndex: 0,
+        page: page,
+        toolId: .shapePen,
+        rect: const Rect.fromLTWH(0, 0, 400, 200),
+      );
+      expect(
+        Eraser().checkForOverlappingStrokes(const Offset(200, 100), [rect]),
+        isEmpty,
+      );
+    });
+  });
 }

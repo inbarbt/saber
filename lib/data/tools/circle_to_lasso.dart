@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 import 'package:saber/components/canvas/_circle_stroke.dart';
 import 'package:saber/components/canvas/_rectangle_stroke.dart';
 import 'package:saber/components/canvas/_stroke.dart';
+import 'package:saber/data/tools/shape_geometry.dart';
 
 /// "Circle to lasso": draw a loop around something with the pen,
 /// lift the pen, then press and hold on the loop. The loop turns into
@@ -74,24 +75,8 @@ abstract final class CircleToLasso {
   }
 
   /// Shortest distance from [p] to the polyline through [points].
-  static double distanceToPolyline(Offset p, List<Offset> points) {
-    if (points.isEmpty) return double.infinity;
-    if (points.length == 1) return (p - points.first).distance;
-    var best = double.infinity;
-    for (int i = 0; i < points.length - 1; i++) {
-      best = min(best, _distanceToSegment(p, points[i], points[i + 1]));
-    }
-    return best;
-  }
-
-  static double _distanceToSegment(Offset p, Offset a, Offset b) {
-    final ab = b - a;
-    final lengthSquared = ab.distanceSquared;
-    if (lengthSquared == 0) return (p - a).distance;
-    final ap = p - a;
-    final t = ((ap.dx * ab.dx + ap.dy * ab.dy) / lengthSquared).clamp(0.0, 1.0);
-    return (p - (a + ab * t)).distance;
-  }
+  static double distanceToPolyline(Offset p, List<Offset> points) =>
+      ShapeGeometry.distanceToPolyline(p, points);
 
   static Rect _boundsOf(List<Offset> points) {
     var minX = double.infinity, minY = double.infinity;

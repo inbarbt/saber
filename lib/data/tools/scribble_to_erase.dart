@@ -86,7 +86,9 @@ abstract final class ScribbleToErase {
   }
 
   static bool _covered(Stroke stroke, Path hull) {
-    final points = stroke.lowQualityPolygon.where((p) => p.isFinite).toList();
+    final points = stroke.isShape
+        ? stroke.outlinePoints()
+        : stroke.lowQualityPolygon.where((p) => p.isFinite).toList();
     if (points.isEmpty) return false;
     final inside = points.where(hull.contains).length;
     return inside / points.length >= minCoveredFraction;

@@ -588,7 +588,12 @@ class EditorState extends State<Editor> {
   /// How long the pen must stay still, and how far it may wander
   /// (screen pixels) while still counting as still.
   static const _holdShapeDuration = Duration(milliseconds: 600);
-  static const _holdShapeTolerance = 6.0;
+  static const _holdShapeTolerance = 10.0;
+
+  /// Once the shape has snapped, how far the pen may drift (screen
+  /// pixels) before going back to freehand. Larger than
+  /// [_holdShapeTolerance] so a shaky hand doesn't lose the shape.
+  static const _holdShapeReleaseTolerance = 28.0;
 
   bool get _holdShapeApplies =>
       stows.holdToDrawShape.value &&
@@ -953,10 +958,13 @@ class EditorState extends State<Editor> {
 
     if (currentTool is Pen) {
       (currentTool as Pen).onDragUpdate(position, currentPressure);
+      final holdTolerance =
+          (_holdShapeSnapped
+              ? _holdShapeReleaseTolerance
+              : _holdShapeTolerance) /
+          _transformationController.value.approxScale;
       if (_holdShapeApplies &&
-          (position - _holdShapeAnchor).distance >
-              _holdShapeTolerance /
-                  _transformationController.value.approxScale) {
+          (position - _holdShapeAnchor).distance > holdTolerance) {
         // Moving again after a snap goes back to freehand.
         if (_holdShapeSnapped) {
           ShapePen.detectedShape = null;
