@@ -51,6 +51,7 @@ abstract final class ShapeLibrary {
       case .rectangle:
         return closed([r.topLeft, r.topRight, r.bottomRight, r.bottomLeft]);
       case .ellipse:
+        final r = circleSnap(start, end);
         const segments = 72;
         return [
           for (int i = 0; i <= segments; i++)
@@ -115,6 +116,29 @@ abstract final class ShapeLibrary {
             ),
         ]);
     }
+  }
+
+  /// An ellipse's width and height snap together, to a perfect circle,
+  /// when they are within this fraction of each other.
+  static const circleSnapTolerance = 0.06;
+
+  /// The box from [start] to [end], made square when it is nearly
+  /// square, so a drawn ellipse snaps to a perfect circle.
+  static Rect circleSnap(Offset start, Offset end) {
+    final w = (end.dx - start.dx).abs();
+    final h = (end.dy - start.dy).abs();
+    if (w <= 0 || h <= 0 || (w / h - 1).abs() > circleSnapTolerance) {
+      return Rect.fromPoints(start, end);
+    }
+    final side = (w + h) / 2;
+    return Rect.fromPoints(
+      start,
+      start +
+          Offset(
+            end.dx >= start.dx ? side : -side,
+            end.dy >= start.dy ? side : -side,
+          ),
+    );
   }
 
   /// Replaces the shape pen's drag [rawStroke] with [shape], drawn in the

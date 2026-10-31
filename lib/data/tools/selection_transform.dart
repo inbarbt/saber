@@ -93,6 +93,10 @@ abstract final class SelectionTransform {
   /// so they never collapse to nothing or flip inside out.
   static const minScale = 0.05;
 
+  /// A circle being resized snaps to a perfect circle when its width
+  /// and height are within this fraction of each other.
+  static const circleSnapTolerance = 0.06;
+
   /// The box around the selected content, turned by [angle] radians.
   /// Returns null if nothing with a size is selected.
   static SelectionBox? contentBox(
@@ -230,7 +234,43 @@ abstract final class SelectionTransform {
 
   /// The scale factors (along the box's own axes) for dragging a corner
   /// [handle] of [box] to [pointer].
+  ///
+  /// [snapToCircle] is the size of a selected circle or ellipse (without
+  /// the box's padding): when the result is nearly as wide as it is
+  /// tall, it snaps to exactly that, so it's easy to get a perfect
+  /// circle back. Pulling further leaves the snap.
   static (double sx, double sy) resizeFactors(
+    SelectionBox box,
+    SelectionHandle handle,
+    Offset pointer, {
+    required bool keepAspectRatio,
+    Size? snapToCircle,
+  }) {
+    final (sx, sy) = _resizeFactors(
+      box,
+      handle,
+      pointer,
+      keepAspectRatio: keepAspectRatio,
+    );
+    if (snapToCircle == null ||
+        snapToCircle.width <= 0 ||
+        snapToCircle.height <= 0) {
+      return (sx, sy);
+    }
+    final w = snapToCircle.width * sx;
+    final h = snapToCircle.height * sy;
+    if ((w / h - 1).abs() > circleSnapTolerance) return (sx, sy);
+    return switch (handle) {
+      .top || .bottom => (sx, w / snapToCircle.height),
+      .left || .right => (h / snapToCircle.width, sy),
+      _ => (
+        (w + h) / 2 / snapToCircle.width,
+        (w + h) / 2 / snapToCircle.height,
+      ),
+    };
+  }
+
+  static (double sx, double sy) _resizeFactors(
     SelectionBox box,
     SelectionHandle handle,
     Offset pointer, {
@@ -278,12 +318,14 @@ abstract final class SelectionTransform {
     SelectionHandle handle,
     Offset pointer, {
     required bool keepAspectRatio,
+    Size? snapToCircle,
   }) {
     final (sx, sy) = resizeFactors(
       box,
       handle,
       pointer,
       keepAspectRatio: keepAspectRatio,
+      snapToCircle: snapToCircle,
     );
     final anchor = anchorFor(handle, box.local);
     return Matrix4.identity()

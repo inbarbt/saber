@@ -17,6 +17,7 @@ import 'package:logging/logging.dart';
 import 'package:path/path.dart' as p;
 import 'package:pdfrx/pdfrx.dart';
 import 'package:saber/components/canvas/_asset_cache.dart';
+import 'package:saber/components/canvas/_circle_stroke.dart';
 import 'package:saber/components/canvas/_graph_stroke.dart';
 import 'package:saber/components/canvas/_stroke.dart';
 import 'package:saber/components/canvas/canvas.dart';
@@ -58,6 +59,7 @@ import 'package:saber/data/tools/scribble_to_erase.dart';
 import 'package:saber/data/tools/select.dart';
 import 'package:saber/data/tools/selection_transform.dart';
 import 'package:saber/data/tools/shape_constraints.dart';
+import 'package:saber/data/tools/shape_library.dart';
 import 'package:saber/data/tools/shape_pen.dart';
 import 'package:saber/i18n/strings.g.dart';
 import 'package:saber/pages/home/whiteboard.dart';
@@ -792,6 +794,7 @@ class EditorState extends State<Editor> {
         handle,
         position,
         keepAspectRatio: SelectionTransform.keepAspectRatio,
+        snapToCircle: _circleSizeAtStart(),
       );
     }
 
@@ -810,6 +813,22 @@ class EditorState extends State<Editor> {
       );
     }
     result.path = _transformStartPath.transform(matrix.storage);
+  }
+
+  /// If a single circle or ellipse is being resized: its size when the
+  /// drag started, in the box's frame and without the box's padding.
+  Size? _circleSizeAtStart() {
+    if (_transformOriginals.length != 1) return null;
+    final shape = _transformOriginals.single;
+    if (shape is! CircleStroke && shape.libraryKind != LibraryShape.ellipse) {
+      return null;
+    }
+    final box = SelectionTransform.contentBox(
+      [shape],
+      const [],
+      angle: _transformStartBox.angle,
+    );
+    return box?.local.size;
   }
 
   void _endSelectionTransform(Select select) {

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:one_dollar_unistroke_recognizer/one_dollar_unistroke_recognizer.dart';
 import 'package:perfect_freehand/perfect_freehand.dart';
 import 'package:saber/components/canvas/_stroke.dart';
+import 'package:saber/data/tools/shape_library.dart';
 import 'package:sbn/has_size.dart';
 
 class CircleStroke extends Stroke {
@@ -174,7 +175,7 @@ class CircleStroke extends Stroke {
     return polylineThrough([
       for (int i = 0; i <= segments; ++i)
         center + Offset.fromDirection(2 * pi * i / segments, radius),
-    ], m);
+    ], m)..libraryKind = LibraryShape.ellipse; // so its points aren't handles
   }
 
   @override

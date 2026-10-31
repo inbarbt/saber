@@ -3,10 +3,12 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:perfect_freehand/perfect_freehand.dart';
+import 'package:saber/components/canvas/_circle_stroke.dart';
 import 'package:saber/components/canvas/_rectangle_stroke.dart';
 import 'package:saber/components/canvas/_stroke.dart';
 import 'package:saber/data/editor/page.dart';
 import 'package:saber/data/flavor_config.dart';
+import 'package:saber/data/tools/selection_transform.dart';
 import 'package:saber/data/tools/shape_constraints.dart';
 import 'package:saber/data/tools/shape_library.dart';
 
@@ -228,6 +230,61 @@ void main() {
       for (int i = 0; i < 4; i++) {
         expect(ShapeConstraints.angleAt(v, i), closeTo(90, 1e-6));
       }
+    });
+
+    test('a stretched circle has no corner handles', () {
+      final circle = CircleStroke(
+        color: Colors.black,
+        pressureEnabled: false,
+        options: StrokeOptions(size: 4),
+        pageIndex: 0,
+        page: page,
+        toolId: .shapePen,
+        center: const Offset(200, 200),
+        radius: 50,
+      );
+      final stretched = circle.transformed(Matrix4.diagonal3Values(2, 1, 1));
+      expect(stretched.libraryKind, LibraryShape.ellipse);
+      expect(stretched.vertices, isEmpty);
+    });
+  });
+
+  group('snap to a perfect circle', () {
+    test('a nearly round ellipse is drawn round', () {
+      final r = ShapeLibrary.circleSnap(
+        const Offset(100, 100),
+        const Offset(200, 204),
+      );
+      expect(r.width, r.height);
+      expect(r.topLeft, const Offset(100, 100));
+    });
+
+    test('a clearly oval one is left alone', () {
+      final r = ShapeLibrary.circleSnap(
+        const Offset(100, 100),
+        const Offset(200, 160),
+      );
+      expect(r.width, isNot(r.height));
+    });
+
+    test('resizing a circle snaps back to round', () {
+      const box = SelectionBox(Rect.fromLTWH(0, 0, 100, 100), 0);
+      final (sx, sy) = SelectionTransform.resizeFactors(
+        box,
+        .right,
+        const Offset(103, 50),
+        keepAspectRatio: false,
+        snapToCircle: const Size(100, 100),
+      );
+      expect(sx, sy);
+      final (fx, fy) = SelectionTransform.resizeFactors(
+        box,
+        .right,
+        const Offset(150, 50),
+        keepAspectRatio: false,
+        snapToCircle: const Size(100, 100),
+      );
+      expect(fx, isNot(fy));
     });
   });
 }
