@@ -381,6 +381,17 @@ editor:
     erasesPen: Erase pen
     erasesHighlighter: Erase highlighter
     erasesShapes: Erase shapes
+  notes:
+    regular: Regular writing
+    toSelf: Note to self
+    general: General note
+    writingAs: "Writing as: $kind"
+    layers: Show
+    classify: Classify as
+    tab: Notes
+    none: No notes yet. Switch the notes button on the toolbar to write notes to yourself or general notes, or select writing and classify it.
+    unnamed: $kind, page $n
+    exportTitle: What to include
   outline:
     title: Contents
     name: Name

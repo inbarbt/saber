@@ -10,6 +10,7 @@ import 'package:saber/components/canvas/_stroke.dart';
 import 'package:saber/components/canvas/image/editor_image.dart';
 import 'package:saber/components/canvas/inner_canvas.dart';
 import 'package:saber/components/canvas/pencil_shader.dart';
+import 'package:saber/data/editor/annotations.dart';
 import 'package:saber/data/editor/editor_exporter.dart';
 import 'package:saber/data/editor/outline.dart';
 import 'package:saber/data/tools/laser_pointer.dart';
@@ -54,6 +55,9 @@ class EditorPage extends ChangeNotifier implements HasSize {
 
   /// This page's entries in the note's own table of contents.
   final List<OutlineEntry> outline;
+
+  /// The annotations (groups of classified strokes) on this page.
+  final List<Annotation> annotations;
 
   bool get isEmpty =>
       strokes.isEmpty &&
@@ -114,7 +118,9 @@ class EditorPage extends ChangeNotifier implements HasSize {
     QuillStruct? quill,
     this.backgroundImage,
     List<OutlineEntry>? outline,
+    List<Annotation>? annotations,
   }) : outline = outline ?? [],
+       annotations = annotations ?? [],
        assert(
          (size == null) || (width == null && height == null),
          "size and width/height shouldn't both be specified",
@@ -178,6 +184,10 @@ class EditorPage extends ChangeNotifier implements HasSize {
           if (entry is Map)
             OutlineEntry.fromJson(entry.cast<String, dynamic>()),
       ],
+      annotations: [
+        for (final a in json['an'] as List? ?? const [])
+          if (a is Map) Annotation.fromJson(a.cast<String, dynamic>()),
+      ],
     );
   }
 
@@ -192,6 +202,9 @@ class EditorPage extends ChangeNotifier implements HasSize {
       'q': quill.controller.document.toDelta().toJson(),
     if (backgroundImage != null) 'b': backgroundImage?.toJson(assets),
     if (outline.isNotEmpty) 'ol': [for (final entry in outline) entry.toJson()],
+    if (Annotations.inUse(annotations, strokes) case final used
+        when used.isNotEmpty)
+      'an': [for (final a in used) a.toJson()],
   };
 
   /// Compares two strokes by pen type, then highlighter color.
@@ -324,6 +337,7 @@ class EditorPage extends ChangeNotifier implements HasSize {
     QuillStruct? quill,
     EditorImage? backgroundImage,
     List<OutlineEntry>? outline,
+    List<Annotation>? annotations,
   }) => EditorPage(
     size: size ?? this.size,
     strokes: strokes ?? this.strokes,
@@ -331,6 +345,7 @@ class EditorPage extends ChangeNotifier implements HasSize {
     quill: quill ?? this.quill,
     backgroundImage: backgroundImage ?? this.backgroundImage,
     outline: outline ?? [for (final entry in this.outline) entry.copy()],
+    annotations: annotations ?? this.annotations,
   );
 
   /// Clones this page for use in a screenshot.

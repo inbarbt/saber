@@ -9,6 +9,7 @@ import 'package:perfect_freehand/perfect_freehand.dart';
 import 'package:saber/components/canvas/_circle_stroke.dart';
 import 'package:saber/components/canvas/_graph_stroke.dart';
 import 'package:saber/components/canvas/_rectangle_stroke.dart';
+import 'package:saber/data/editor/annotations.dart';
 import 'package:saber/data/extensions/list_extensions.dart';
 import 'package:saber/data/extensions/point_extensions.dart';
 import 'package:saber/data/tools/selection_transform.dart';
@@ -63,6 +64,11 @@ class Stroke {
   /// for hand-drawn shapes other than rectangles.
   LibraryShape? libraryKind;
 
+  /// What kind of writing this is (see [NoteKind]), and which annotation
+  /// on its page it belongs to, if any.
+  var noteKind = NoteKind.regular;
+  int? noteGroup;
+
   /// Whether this is a drawn shape rather than handwriting.
   /// Shapes keep their line thickness when resized.
   bool get isShape => crisp;
@@ -85,6 +91,8 @@ class Stroke {
     if (arrowEnd) 'arw': true,
     if (crisp) 'crp': true,
     if (libraryKind != null) 'lsh': libraryKind!.name,
+    if (noteKind != NoteKind.regular) 'nk': noteKind.index,
+    if (noteGroup != null) 'ng': noteGroup,
   };
 
   void readStyle(Map<String, dynamic> json) {
@@ -99,6 +107,16 @@ class Stroke {
     final kind = json['lsh'];
     libraryKind = kind is String ? LibraryShape.fromName(kind) : null;
     if (libraryKind == LibraryShape.auto) libraryKind = null;
+    noteKind = NoteKind.fromIndex(switch (json['nk']) {
+      final num n => n.toInt(),
+      final Int64 n => n.toInt(),
+      _ => null,
+    });
+    noteGroup = switch (json['ng']) {
+      final num n => n.toInt(),
+      final Int64 n => n.toInt(),
+      _ => null,
+    };
   }
 
   /// Copies this stroke's style onto [other] and returns it.
@@ -107,7 +125,9 @@ class Stroke {
     ..fillColor = source.fillColor
     ..arrowEnd = source.arrowEnd
     ..crisp = source.crisp
-    ..libraryKind = source.libraryKind;
+    ..libraryKind = source.libraryKind
+    ..noteKind = source.noteKind
+    ..noteGroup = source.noteGroup;
 
   List<Offset>? _lowQualityPolygon, _highQualityPolygon;
   List<Offset> get lowQualityPolygon =>

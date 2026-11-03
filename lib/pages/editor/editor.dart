@@ -40,6 +40,7 @@ import 'package:saber/components/toolbar/pages_panel.dart';
 import 'package:saber/components/toolbar/selection_bar.dart';
 import 'package:saber/components/toolbar/selection_menu_layout.dart';
 import 'package:saber/components/toolbar/toolbar.dart';
+import 'package:saber/data/editor/annotations.dart';
 import 'package:saber/data/editor/editor_core_info.dart';
 import 'package:saber/data/editor/editor_exporter.dart';
 import 'package:saber/data/editor/editor_history.dart';
@@ -490,6 +491,16 @@ class EditorState extends State<Editor> {
       case (final HistoricBackgroundPatternChange historic):
         coreInfo.backgroundPattern = historic.change.previous;
 
+      case (final HistoricNoteKindChange historic):
+        for (final (i, stroke) in historic.strokes.indexed) {
+          stroke.noteKind = historic.before[i].$1;
+          stroke.noteGroup = historic.before[i].$2;
+        }
+        coreInfo.pages[historic.pageIndex].redrawStrokes();
+
+      case (final HistoricAnnotationRename historic):
+        historic.annotation.name = historic.before;
+
       case (final HistoricOutlineChange historic):
         coreInfo.pages[historic.pageIndex].outline
           ..clear()
@@ -570,7 +581,7 @@ class EditorState extends State<Editor> {
       pageIndexStart: pageIndex,
     );
     select.onDragEnd([
-      for (final stroke in page.strokes)
+      for (final stroke in _shownStrokes(page))
         if (!identical(stroke, loop)) stroke,
     ], page.images);
     if (select.selectResult.isEmpty) {
@@ -726,6 +737,51 @@ class EditorState extends State<Editor> {
       ..close();
   }
 
+  /// Classifies the selected strokes as [kind] of writing.
+  void classifySelection(NoteKind kind) {
+    final select = currentTool;
+    if (select is! Select || !select.doneSelecting) return;
+    final result = select.selectResult;
+    final strokes = List.of(result.strokes);
+    if (strokes.isEmpty) return;
+    final page = coreInfo.pages[result.pageIndex];
+    final before = [for (final s in strokes) (s.noteKind, s.noteGroup)];
+    Annotations.classify(
+      strokes,
+      kind,
+      annotations: page.annotations,
+      now: DateTime.now().millisecondsSinceEpoch,
+    );
+    history.recordChange(
+      HistoricNoteKindChange(
+        pageIndex: result.pageIndex,
+        strokes: strokes,
+        before: before,
+        after: [for (final s in strokes) (s.noteKind, s.noteGroup)],
+      ),
+    );
+    page.redrawStrokes();
+    autosaveAfterDelay();
+    setState(() {});
+  }
+
+  /// Redraws every page after a kind of writing was shown or hidden.
+  void _onLayersChanged() {
+    final select = currentTool;
+    if (select is Select && select.doneSelecting) {
+      // Hidden strokes can't stay selected
+      if (select.selectResult.strokes.any(
+        (s) => !Annotations.isStrokeShown(s),
+      )) {
+        select.unselect();
+      }
+    }
+    for (final page in coreInfo.pages) {
+      page.redrawStrokes();
+    }
+    setState(() {});
+  }
+
   /// Switches the selected shape between shape editing and its box.
   void toggleShapeEditing() {
     final select = currentTool;
@@ -811,6 +867,11 @@ class EditorState extends State<Editor> {
       ),
     );
   }
+
+  /// The strokes on [page] whose kind is shown: hidden layers can't be
+  /// selected or erased.
+  static List<Stroke> _shownStrokes(EditorPage page) =>
+      page.strokes.where(Annotations.isStrokeShown).toList();
 
   /// What other shapes snap to during the current drag, if snapping.
   SnapFeatures? _snapTargets;
@@ -1116,7 +1177,7 @@ class EditorState extends State<Editor> {
       final loop = stows.circleToLasso.value
           ? CircleToLasso.loopAt(
               position,
-              page.strokes,
+              _shownStrokes(page),
               _transformationController.value.approxScale,
             )
           : null;
@@ -1417,7 +1478,10 @@ class EditorState extends State<Editor> {
             currentTool is! ShapePen &&
             currentTool is! Highlighter &&
             ScribbleToErase.isScribble(newStroke.centerline)) {
-          final erased = ScribbleToErase.strokesUnder(newStroke, page.strokes);
+          final erased = ScribbleToErase.strokesUnder(
+            newStroke,
+            _shownStrokes(page),
+          );
           if (erased.isNotEmpty) {
             // The scribble itself is never kept.
             for (final stroke in erased) {
@@ -1436,6 +1500,15 @@ class EditorState extends State<Editor> {
         }
 
         createPage(newStroke.pageIndex);
+        if (Annotations.current.value != NoteKind.regular) {
+          Annotations.assign(
+            newStroke,
+            Annotations.current.value,
+            annotations: page.annotations,
+            pageStrokes: page.strokes,
+            now: DateTime.now().millisecondsSinceEpoch,
+          );
+        }
         page.insertStroke(newStroke);
         history.recordChange(HistoricAdd(strokes: [newStroke], images: []));
 
@@ -1486,7 +1559,7 @@ class EditorState extends State<Editor> {
           select.selectResult.pageIndexStart = select.selectResult.pageIndex;
         } else {
           shouldSave = false;
-          select.onDragEnd(page.strokes, page.images);
+          select.onDragEnd(_shownStrokes(page), page.images);
 
           if (select.selectResult.isEmpty) {
             Select.currentSelect.unselect();
@@ -2043,13 +2116,13 @@ class EditorState extends State<Editor> {
     if (!eraser.partial) {
       for (final stroke in eraser.checkForOverlappingStrokes(
         position,
-        page.strokes,
+        _shownStrokes(page),
       )) {
         page.strokes.remove(stroke);
       }
       return;
     }
-    final replacements = eraser.erasePartially(position, List.of(page.strokes));
+    final replacements = eraser.erasePartially(position, _shownStrokes(page));
     for (final MapEntry(key: stroke, value: pieces) in replacements.entries) {
       page.strokes.remove(stroke);
       for (final piece in pieces) {
@@ -2373,13 +2446,74 @@ class EditorState extends State<Editor> {
   }
 
   Future exportAsPdf(BuildContext context) async {
-    final pdf = await EditorExporter.generatePdf(coreInfo, context);
+    var toExport = coreInfo;
+    final hasNotes = coreInfo.pages.any(
+      (page) => page.strokes.any((s) => s.noteKind != NoteKind.regular),
+    );
+    if (hasNotes) {
+      final kinds = await _askLayersToExport(context);
+      if (kinds == null || !context.mounted) return;
+      toExport = coreInfo.copyWith(
+        pages: [
+          for (final page in coreInfo.pages)
+            page.copyWith(
+              strokes: [
+                for (final s in page.strokes)
+                  if (kinds.contains(s.noteKind)) s,
+              ],
+            ),
+        ],
+      );
+    }
+    final pdf = await EditorExporter.generatePdf(toExport, context);
     final bytes = await pdf.save();
     if (!context.mounted) return;
     await FileManager.exportFile(
       '${coreInfo.fileName}.pdf',
       bytes,
       context: context,
+    );
+  }
+
+  /// Asks which kinds of writing go into an exported PDF.
+  /// Starts with the kinds shown now. Null if cancelled.
+  Future<Set<NoteKind>?> _askLayersToExport(BuildContext context) {
+    final chosen = {
+      for (final kind in NoteKind.values)
+        if (Annotations.isShown(kind)) kind,
+    };
+    return showDialog<Set<NoteKind>>(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: Text(t.editor.notes.exportTitle),
+          content: Column(
+            mainAxisSize: .min,
+            children: [
+              for (final kind in NoteKind.values)
+                CheckboxListTile(
+                  value: chosen.contains(kind),
+                  title: Text(noteKindLabel(kind)),
+                  onChanged: (on) => setDialogState(
+                    () => on == true ? chosen.add(kind) : chosen.remove(kind),
+                  ),
+                ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: Text(MaterialLocalizations.of(context).cancelButtonLabel),
+            ),
+            TextButton(
+              onPressed: chosen.isEmpty
+                  ? null
+                  : () => Navigator.pop(context, chosen),
+              child: Text(MaterialLocalizations.of(context).okButtonLabel),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -2584,6 +2718,7 @@ class EditorState extends State<Editor> {
           exportAsSba: exportAsSba,
           exportAsPdf: exportAsPdf,
           exportAsPng: exportAsPng,
+          onLayersChanged: _onLayersChanged,
         ),
       ),
     );
@@ -2667,6 +2802,18 @@ class EditorState extends State<Editor> {
               screenWidth: MediaQuery.sizeOf(context).width,
               transformationController: _transformationController,
             );
+          },
+          onAnnotationRenamed: (pageIndex, annotation, before) {
+            if (coreInfo.readOnly) return;
+            history.recordChange(
+              HistoricAnnotationRename(
+                pageIndex: pageIndex,
+                annotation: annotation,
+                before: before,
+                after: annotation.name,
+              ),
+            );
+            autosaveAfterDelay();
           },
           onOutlineChanged: (pageIndex, before) {
             if (coreInfo.readOnly) return;
@@ -2879,6 +3026,7 @@ class EditorState extends State<Editor> {
                 setSelectionSize: setSelectionSize,
                 getSelectionStyle: () => selectionStyle,
                 setSelectionStyle: setSelectionStyle,
+                classify: result.strokes.isEmpty ? null : classifySelection,
                 editingShape:
                     SelectionTransform.canEditShape(
                       result.strokes,

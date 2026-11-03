@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:pdfrx/pdfrx.dart';
 import 'package:saber/components/canvas/image/editor_image.dart';
+import 'package:saber/components/toolbar/toolbar.dart';
+import 'package:saber/data/editor/annotations.dart';
 import 'package:saber/data/editor/editor_core_info.dart';
 import 'package:saber/data/editor/outline.dart';
 import 'package:saber/data/editor/page.dart';
@@ -20,6 +22,7 @@ class PagesPanel extends StatelessWidget {
     required this.pageManager,
     required this.goToPage,
     required this.onOutlineChanged,
+    required this.onAnnotationRenamed,
   });
 
   final EditorCoreInfo coreInfo;
@@ -35,19 +38,24 @@ class PagesPanel extends StatelessWidget {
   final void Function(int pageIndex, List<OutlineEntry> before)
   onOutlineChanged;
 
+  /// Called after an annotation is renamed, with its old name.
+  final void Function(int pageIndex, Annotation annotation, String? before)
+  onAnnotationRenamed;
+
   @override
   Widget build(BuildContext context) {
     return Drawer(
       width: 340,
       child: SafeArea(
         child: DefaultTabController(
-          length: 2,
+          length: 3,
           child: Column(
             children: [
               TabBar(
                 tabs: [
                   Tab(text: t.editor.pages),
                   Tab(text: t.editor.outline.title),
+                  Tab(text: t.editor.notes.tab),
                 ],
               ),
               Expanded(
@@ -59,6 +67,11 @@ class PagesPanel extends StatelessWidget {
                       currentPageIndex: currentPageIndex,
                       goToPage: goToPage,
                       onChanged: onOutlineChanged,
+                    ),
+                    NotesView(
+                      coreInfo: coreInfo,
+                      goToPage: goToPage,
+                      onRenamed: onAnnotationRenamed,
                     ),
                   ],
                 ),
@@ -336,6 +349,130 @@ class _OutlineViewState extends State<OutlineView> {
             );
           },
         ),
+      ],
+    );
+  }
+}
+
+/// The annotations in a note: notes to self and general notes.
+class NotesView extends StatefulWidget {
+  const new({
+    super.key,
+    required this.coreInfo,
+    required this.goToPage,
+    required this.onRenamed,
+  });
+
+  final EditorCoreInfo coreInfo;
+  final ValueChanged<int> goToPage;
+  final void Function(int pageIndex, Annotation annotation, String? before)
+  onRenamed;
+
+  /// The annotations still in use, in page order, oldest first per page.
+  static List<({int pageIndex, Annotation annotation})> annotationsOf(
+    List<EditorPage> pages,
+  ) => [
+    for (final (pageIndex, page) in pages.indexed)
+      for (final annotation in Annotations.inUse(
+        page.annotations,
+        page.strokes,
+      )..sort((a, b) => a.createdAt.compareTo(b.createdAt)))
+        (pageIndex: pageIndex, annotation: annotation),
+  ];
+
+  @override
+  State<NotesView> createState() => _NotesViewState();
+}
+
+class _NotesViewState extends State<NotesView> {
+  NoteKind? _only;
+
+  Future<void> _rename(int pageIndex, Annotation annotation) async {
+    final controller = TextEditingController(text: annotation.name ?? '');
+    final name = await showDialog<String>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(t.editor.outline.name),
+        content: TextField(
+          controller: controller,
+          autofocus: true,
+          onSubmitted: (value) => Navigator.pop(context, value),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: Text(MaterialLocalizations.of(context).cancelButtonLabel),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(context, controller.text),
+            child: Text(MaterialLocalizations.of(context).okButtonLabel),
+          ),
+        ],
+      ),
+    );
+    if (name == null) return;
+    final before = annotation.name;
+    setState(() => annotation.name = name.trim().isEmpty ? null : name.trim());
+    widget.onRenamed(pageIndex, annotation, before);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final all = NotesView.annotationsOf(widget.coreInfo.pages);
+    final shown = [
+      for (final item in all)
+        if (_only == null || item.annotation.kind == _only) item,
+    ];
+    final localizations = MaterialLocalizations.of(context);
+    return ListView(
+      children: [
+        Padding(
+          padding: const .all(8),
+          child: Wrap(
+            spacing: 8,
+            children: [
+              for (final kind in [NoteKind.toSelf, NoteKind.general])
+                FilterChip(
+                  avatar: Icon(noteKindIcon(kind), size: 18),
+                  label: Text(noteKindLabel(kind)),
+                  selected: _only == kind,
+                  onSelected: (on) => setState(() => _only = on ? kind : null),
+                ),
+            ],
+          ),
+        ),
+        if (shown.isEmpty)
+          Padding(
+            padding: const .all(16),
+            child: Text(
+              t.editor.notes.none,
+              style: TextTheme.of(context).bodySmall,
+            ),
+          ),
+        for (final (:pageIndex, :annotation) in shown)
+          ListTile(
+            leading: Icon(noteKindIcon(annotation.kind)),
+            title: Text(
+              annotation.name ??
+                  t.editor.notes.unnamed(
+                    kind: noteKindLabel(annotation.kind),
+                    n: '${pageIndex + 1}',
+                  ),
+            ),
+            subtitle: Text(() {
+              final time = DateTime.fromMillisecondsSinceEpoch(
+                annotation.createdAt,
+              );
+              return '${localizations.formatShortDate(time)} '
+                  '${localizations.formatTimeOfDay(TimeOfDay.fromDateTime(time))}';
+            }()),
+            onTap: () => widget.goToPage(pageIndex),
+            trailing: IconButton(
+              tooltip: t.editor.outline.rename,
+              icon: const Icon(Icons.drive_file_rename_outline),
+              onPressed: () => _rename(pageIndex, annotation),
+            ),
+          ),
       ],
     );
   }

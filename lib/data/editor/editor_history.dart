@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:saber/components/canvas/_stroke.dart';
 import 'package:saber/components/canvas/image/editor_image.dart';
+import 'package:saber/data/editor/annotations.dart';
 import 'package:saber/data/editor/outline.dart';
 import 'package:saber/data/editor/page.dart';
 import 'package:sbn/canvas_background_pattern.dart';
@@ -150,6 +151,39 @@ sealed class Historic {
   /// The reverse of this change,
   /// e.g. switching between [HistoricAdd] and [HistoricDelete].
   Historic reverse();
+}
+
+/// Strokes were classified as a different kind of writing.
+/// [before] and [after] hold each stroke's kind and annotation.
+class const HistoricNoteKindChange({
+  required final int pageIndex,
+  required final List<Stroke> strokes,
+  required final List<(NoteKind, int?)> before,
+  required final List<(NoteKind, int?)> after,
+}) extends Historic {
+  @override
+  HistoricNoteKindChange reverse() => .new(
+    pageIndex: pageIndex,
+    strokes: strokes,
+    before: after,
+    after: before,
+  );
+}
+
+/// An annotation was renamed.
+class const HistoricAnnotationRename({
+  required final int pageIndex,
+  required final Annotation annotation,
+  required final String? before,
+  required final String? after,
+}) extends Historic {
+  @override
+  HistoricAnnotationRename reverse() => .new(
+    pageIndex: pageIndex,
+    annotation: annotation,
+    before: after,
+    after: before,
+  );
 }
 
 /// A page's entries in the note's own table of contents changed.

@@ -314,6 +314,7 @@ class Translations$editor$en {
 	late final Translations$editor$shapeStyle$en shapeStyle = Translations$editor$shapeStyle$en.internal(_root);
 	late final Translations$editor$penFeel$en penFeel = Translations$editor$penFeel$en.internal(_root);
 	late final Translations$editor$eraserBar$en eraserBar = Translations$editor$eraserBar$en.internal(_root);
+	late final Translations$editor$notes$en notes = Translations$editor$notes$en.internal(_root);
 	late final Translations$editor$outline$en outline = Translations$editor$outline$en.internal(_root);
 	late final Translations$editor$selectionBar$en selectionBar = Translations$editor$selectionBar$en.internal(_root);
 	late final Translations$editor$menu$en menu = Translations$editor$menu$en.internal(_root);
@@ -1451,6 +1452,45 @@ class Translations$editor$eraserBar$en {
 
 	/// en: 'Erase shapes'
 	String get erasesShapes => 'Erase shapes';
+}
+
+// Path: editor.notes
+class Translations$editor$notes$en {
+	Translations$editor$notes$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Regular writing'
+	String get regular => 'Regular writing';
+
+	/// en: 'Note to self'
+	String get toSelf => 'Note to self';
+
+	/// en: 'General note'
+	String get general => 'General note';
+
+	/// en: 'Writing as: $kind'
+	String writingAs({required Object kind}) => 'Writing as: ${kind}';
+
+	/// en: 'Show'
+	String get layers => 'Show';
+
+	/// en: 'Classify as'
+	String get classify => 'Classify as';
+
+	/// en: 'Notes'
+	String get tab => 'Notes';
+
+	/// en: 'No notes yet. Switch the notes button on the toolbar to write notes to yourself or general notes, or select writing and classify it.'
+	String get none => 'No notes yet. Switch the notes button on the toolbar to write notes to yourself or general notes, or select writing and classify it.';
+
+	/// en: '$kind, page $n'
+	String unnamed({required Object kind, required Object n}) => '${kind}, page ${n}';
+
+	/// en: 'What to include'
+	String get exportTitle => 'What to include';
 }
 
 // Path: editor.outline

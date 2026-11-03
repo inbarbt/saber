@@ -5,9 +5,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:pdfrx/pdfrx.dart';
+import 'package:perfect_freehand/perfect_freehand.dart';
 import 'package:saber/components/canvas/_asset_cache.dart';
+import 'package:saber/components/canvas/_stroke.dart';
 import 'package:saber/components/canvas/pencil_shader.dart';
 import 'package:saber/components/toolbar/pages_panel.dart';
+import 'package:saber/data/editor/annotations.dart';
 import 'package:saber/data/editor/editor_core_info.dart';
 import 'package:saber/data/editor/editor_exporter.dart';
 import 'package:saber/data/editor/editor_history.dart';
@@ -140,6 +143,54 @@ void main() {
       expect(text, contains('/Outlines'));
       expect(text, contains('Fourier series'));
       expect(text, contains('Parseval'));
+    });
+  });
+
+  testWidgets('named notes become entries in the exported contents', (
+    tester,
+  ) async {
+    final page = EditorPage();
+    page.strokes.add(
+      Stroke(
+          color: Colors.black,
+          pressureEnabled: false,
+          options: StrokeOptions(size: 3, isComplete: true),
+          pageIndex: 0,
+          page: page,
+          toolId: .fountainPen,
+        )
+        ..addPoints(const [Offset(100, 100), Offset(200, 120)])
+        ..noteKind = NoteKind.general
+        ..noteGroup = 1,
+    );
+    page.annotations.add(
+      Annotation(
+        id: 1,
+        kind: NoteKind.general,
+        createdAt: 0,
+        name: 'Why it works',
+      ),
+    );
+    final coreInfo = EditorCoreInfo(filePath: '/tests/notes_export')
+      ..pages.add(page);
+    final completer = Completer<BuildContext>();
+    await tester.pumpWidget(
+      TranslationProvider(
+        child: MaterialApp(
+          home: Builder(
+            builder: (context) {
+              if (!completer.isCompleted) completer.complete(context);
+              return const SizedBox();
+            },
+          ),
+        ),
+      ),
+    );
+    final context = await completer.future;
+    await tester.runAsync(() async {
+      final doc = await EditorExporter.generatePdf(coreInfo, context);
+      final text = latin1.decode(await doc.save());
+      expect(text, contains('Why it works'));
     });
   });
 }

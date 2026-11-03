@@ -15,9 +15,11 @@ import 'package:saber/components/canvas/_rectangle_stroke.dart';
 import 'package:saber/components/canvas/_stroke.dart';
 import 'package:saber/components/canvas/canvas_preview.dart';
 import 'package:saber/components/canvas/inner_canvas.dart';
+import 'package:saber/data/editor/annotations.dart';
 import 'package:saber/data/editor/editor_core_info.dart';
 import 'package:saber/data/is_this_a_test.dart';
 import 'package:saber/data/tools/shape_geometry.dart';
+import 'package:saber/i18n/strings.g.dart';
 import 'package:screenshot/screenshot.dart';
 
 abstract class EditorExporter {
@@ -245,8 +247,10 @@ abstract class EditorExporter {
                 ),
               ),
             );
-            if (page.outline.isEmpty) return content;
-            // The note's bookmarks become the PDF's table of contents
+            final notes = Annotations.inUse(page.annotations, page.strokes);
+            if (page.outline.isEmpty && notes.isEmpty) return content;
+            // The note's bookmarks and annotations become the PDF's
+            // table of contents
             return pw.Stack(
               children: [
                 content,
@@ -255,6 +259,17 @@ abstract class EditorExporter {
                     name: 'saber-outline-$pageIndex-$i',
                     title: entry.title,
                     level: entry.level,
+                    child: pw.SizedBox(width: 1, height: 1),
+                  ),
+                for (final note in notes)
+                  pw.Outline(
+                    name: 'saber-note-$pageIndex-${note.id}',
+                    title:
+                        note.name ??
+                        t.editor.notes.unnamed(
+                          kind: noteKindLabel(note.kind),
+                          n: '${pageIndex + 1}',
+                        ),
                     child: pw.SizedBox(width: 1, height: 1),
                   ),
               ],

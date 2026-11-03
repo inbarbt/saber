@@ -1,6 +1,8 @@
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:saber/components/theming/adaptive_icon.dart';
+import 'package:saber/components/toolbar/toolbar.dart';
+import 'package:saber/data/editor/annotations.dart';
 import 'package:saber/data/tools/selection_transform.dart';
 import 'package:saber/i18n/strings.g.dart';
 
@@ -30,6 +32,9 @@ class SelectionBar extends StatelessWidget {
   final bool? editingShape;
   final VoidCallback? toggleShapeEditing;
 
+  /// Classifies the selected writing; null hides the button.
+  final ValueChanged<NoteKind>? classify;
+
   const new({
     super.key,
     required this.duplicateSelection,
@@ -44,6 +49,7 @@ class SelectionBar extends StatelessWidget {
     this.setSelectionStyle,
     this.editingShape,
     this.toggleShapeEditing,
+    this.classify,
   });
 
   /// Thicknesses offered by the picker.
@@ -143,6 +149,22 @@ class SelectionBar extends StatelessWidget {
                 ? t.editor.selectionBar.frameMode
                 : t.editor.selectionBar.editShape,
             icon: Icon(editingShape! ? Icons.crop_free : Icons.polyline),
+          ),
+        if (classify != null)
+          PopupMenuButton<NoteKind>(
+            tooltip: t.editor.notes.classify,
+            icon: const Icon(Icons.label_outline),
+            onSelected: classify,
+            itemBuilder: (context) => [
+              for (final kind in NoteKind.values)
+                PopupMenuItem(
+                  value: kind,
+                  child: ListTile(
+                    leading: Icon(noteKindIcon(kind)),
+                    title: Text(noteKindLabel(kind)),
+                  ),
+                ),
+            ],
           ),
         if (copySelection != null)
           _SelectionBarButton(

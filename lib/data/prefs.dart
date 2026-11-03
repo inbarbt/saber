@@ -271,6 +271,13 @@ class Stows {
     true,
     volatile: !_isOnMainIsolate,
   );
+
+  /// Kinds of writing (NoteKind indexes) that are hidden.
+  final hiddenNoteKinds = PlainStow(
+    'hiddenNoteKinds',
+    <String>[],
+    volatile: !_isOnMainIsolate,
+  );
   final autoImportPdfs = PlainStow(
     'autoImportPdfs',
     true,

@@ -17,6 +17,7 @@ import 'package:saber/components/toolbar/eraser_bar.dart';
 import 'package:saber/components/toolbar/floating_panel.dart';
 import 'package:saber/components/toolbar/pen_modal.dart';
 import 'package:saber/components/toolbar/toolbar_button.dart';
+import 'package:saber/data/editor/annotations.dart';
 import 'package:saber/data/editor/page.dart';
 import 'package:saber/data/extensions/color_extensions.dart';
 import 'package:saber/data/prefs.dart';
@@ -54,6 +55,7 @@ class Toolbar extends StatefulWidget {
     required this.exportAsSba,
     required this.exportAsPdf,
     required this.exportAsPng,
+    this.onLayersChanged,
   });
 
   final bool readOnly;
@@ -84,6 +86,9 @@ class Toolbar extends StatefulWidget {
   final Future Function(BuildContext)? exportAsSba;
   final Future Function(BuildContext)? exportAsPdf;
   final Future Function(BuildContext)? exportAsPng;
+
+  /// Called after a kind of writing is shown or hidden, to redraw.
+  final VoidCallback? onLayersChanged;
 
   @override
   State<Toolbar> createState() => _ToolbarState();
@@ -339,6 +344,7 @@ class _ToolbarState extends State<Toolbar> {
         },
         paste: widget.pasteStrokes ?? widget.paste,
       ),
+      _NoteKindButton(enabled: !widget.readOnly, padding: buttonPadding),
     ];
 
     final presets = presetKind == null
@@ -378,6 +384,10 @@ class _ToolbarState extends State<Toolbar> {
       },
       toggleFingerDrawing: widget.toggleFingerDrawing,
       toggleFullscreen: toggleFullscreen,
+      onLayersChanged: () {
+        widget.onLayersChanged?.call();
+        setState(() {});
+      },
       exportAsSba: widget.exportAsSba,
       exportAsPdf: widget.exportAsPdf,
       exportAsPng: widget.exportAsPng,
@@ -390,20 +400,14 @@ class _ToolbarState extends State<Toolbar> {
         link: _panelLink,
         child: Padding(
           padding: const .all(6),
+          // Buttons wrap onto a second row on narrow screens
+          // (e.g. a tablet held upright) instead of being cut off.
           child: Wrap(
             direction: direction,
-            alignment: WrapAlignment.spaceBetween,
+            alignment: WrapAlignment.center,
             crossAxisAlignment: WrapCrossAlignment.center,
             runSpacing: 4,
-            children: [
-              Flex(
-                direction: direction,
-                mainAxisSize: .min,
-                children: toolButtons,
-              ),
-              Flex(direction: direction, mainAxisSize: .min, children: presets),
-              moreMenu,
-            ],
+            children: [...toolButtons, ...presets, moreMenu],
           ),
         ),
       ),
@@ -697,6 +701,7 @@ class _MoreMenu extends StatelessWidget {
     required this.selectLaser,
     required this.toggleFingerDrawing,
     required this.toggleFullscreen,
+    required this.onLayersChanged,
     required this.exportAsSba,
     required this.exportAsPdf,
     required this.exportAsPng,
@@ -708,6 +713,7 @@ class _MoreMenu extends StatelessWidget {
   final VoidCallback selectLaser;
   final VoidCallback toggleFingerDrawing;
   final VoidCallback toggleFullscreen;
+  final VoidCallback onLayersChanged;
   final Future Function(BuildContext)? exportAsSba;
   final Future Function(BuildContext)? exportAsPdf;
   final Future Function(BuildContext)? exportAsPng;
@@ -740,6 +746,22 @@ class _MoreMenu extends StatelessWidget {
           child: Text(t.editor.toolbar.fullscreen),
         ),
         SubmenuButton(
+          leadingIcon: const Icon(Icons.layers_outlined),
+          menuChildren: [
+            for (final kind in NoteKind.values)
+              CheckboxMenuButton(
+                value: Annotations.isShown(kind),
+                closeOnActivate: false,
+                onChanged: (shown) {
+                  Annotations.setShown(kind, shown ?? true);
+                  onLayersChanged();
+                },
+                child: Text(noteKindLabel(kind)),
+              ),
+          ],
+          child: Text(t.editor.notes.layers),
+        ),
+        SubmenuButton(
           leadingIcon: const Icon(Icons.share),
           menuChildren: [
             if (exportAsPdf != null)
@@ -768,6 +790,37 @@ class _MoreMenu extends StatelessWidget {
             controller.isOpen ? controller.close() : controller.open(),
         padding: padding,
         child: const Icon(Icons.more_horiz),
+      ),
+    );
+  }
+}
+
+IconData noteKindIcon(NoteKind kind) => switch (kind) {
+  NoteKind.regular => Icons.edit_note,
+  NoteKind.toSelf => Icons.contact_support_outlined,
+  NoteKind.general => Icons.lightbulb_outline,
+};
+
+/// Switches what new writing counts as: regular, a note to self, or a
+/// general note. Tapping goes to the next kind.
+class _NoteKindButton extends StatelessWidget {
+  const new({required this.enabled, required this.padding});
+
+  final bool enabled;
+  final EdgeInsets padding;
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder(
+      valueListenable: Annotations.current,
+      builder: (context, kind, _) => ToolbarIconButton(
+        tooltip: t.editor.notes.writingAs(kind: noteKindLabel(kind)),
+        selected: kind != NoteKind.regular,
+        enabled: enabled,
+        onPressed: () => Annotations.current.value =
+            NoteKind.values[(kind.index + 1) % NoteKind.values.length],
+        padding: padding,
+        child: Icon(noteKindIcon(kind)),
       ),
     );
   }

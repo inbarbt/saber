@@ -9,6 +9,7 @@ import 'package:saber/components/canvas/_circle_stroke.dart';
 import 'package:saber/components/canvas/_graph_stroke.dart';
 import 'package:saber/components/canvas/_rectangle_stroke.dart';
 import 'package:saber/components/canvas/_stroke.dart';
+import 'package:saber/data/editor/annotations.dart';
 import 'package:saber/data/editor/page.dart';
 import 'package:saber/data/extensions/color_extensions.dart';
 import 'package:saber/data/tools/highlighter.dart';
@@ -122,6 +123,7 @@ class CanvasPainter extends CustomPainter {
     Color? lastColor;
     for (final stroke in strokes) {
       if (stroke.toolId != .highlighter) continue;
+      if (!Annotations.isStrokeShown(stroke)) continue;
 
       final color = stroke.color.withValues(alpha: 1).withInversion(invert);
 
@@ -145,6 +147,7 @@ class CanvasPainter extends CustomPainter {
 
     for (final stroke in strokes) {
       if (stroke.toolId == .highlighter) continue;
+      if (!Annotations.isStrokeShown(stroke)) continue;
 
       var color = stroke.color.withInversion(invert);
       if (currentSelection?.strokes.contains(stroke) ?? false) {
