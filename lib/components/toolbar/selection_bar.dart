@@ -25,6 +25,11 @@ class SelectionBar extends StatelessWidget {
   final void Function({bool? dashed, bool? filled, bool? arrow})?
   setSelectionStyle;
 
+  /// For a single shape: whether it's in shape editing (true) or shows
+  /// its box (false). Null hides the switch.
+  final bool? editingShape;
+  final VoidCallback? toggleShapeEditing;
+
   const new({
     super.key,
     required this.duplicateSelection,
@@ -37,6 +42,8 @@ class SelectionBar extends StatelessWidget {
     this.setSelectionSize,
     this.getSelectionStyle,
     this.setSelectionStyle,
+    this.editingShape,
+    this.toggleShapeEditing,
   });
 
   /// Thicknesses offered by the picker.
@@ -128,6 +135,15 @@ class SelectionBar extends StatelessWidget {
     return Row(
       mainAxisAlignment: .center,
       children: [
+        if (editingShape != null && toggleShapeEditing != null)
+          IconButton(
+            onPressed: toggleShapeEditing,
+            isSelected: editingShape,
+            tooltip: editingShape!
+                ? t.editor.selectionBar.frameMode
+                : t.editor.selectionBar.editShape,
+            icon: Icon(editingShape! ? Icons.crop_free : Icons.polyline),
+          ),
         if (copySelection != null)
           _SelectionBarButton(
             onPressed: copySelection!,

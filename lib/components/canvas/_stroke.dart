@@ -529,7 +529,12 @@ class Stroke {
   /// A closed shape's repeated end point is left out.
   List<Offset> get vertices {
     if (!crisp || !ShapeConstraints.hasVertices(libraryKind)) return const [];
-    final line = centerline;
+    // A point repeated right after itself (straightened lines end with
+    // one) is a single corner.
+    final line = <Offset>[];
+    for (final point in centerline) {
+      if (line.isEmpty || (point - line.last).distance >= 0.5) line.add(point);
+    }
     if (line.length >= 3 && (line.first - line.last).distance < 0.5) {
       return line.sublist(0, line.length - 1);
     }

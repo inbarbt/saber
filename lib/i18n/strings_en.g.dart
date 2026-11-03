@@ -1474,6 +1474,12 @@ class Translations$editor$selectionBar$en {
 
 	/// en: 'Thickness'
 	String get thickness => 'Thickness';
+
+	/// en: 'Edit the shape (corners and sides)'
+	String get editShape => 'Edit the shape (corners and sides)';
+
+	/// en: 'Resize or stretch the whole shape'
+	String get frameMode => 'Resize or stretch the whole shape';
 }
 
 // Path: editor.menu

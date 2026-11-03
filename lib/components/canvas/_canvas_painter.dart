@@ -487,6 +487,18 @@ class CanvasPainter extends CustomPainter {
       ..color = primaryColor
       ..strokeWidth = 1.5 / scale
       ..style = .stroke;
+    final radius = SelectionTransform.handleRadius / scale;
+
+    final editing = SelectionTransform.isEditingShape(
+      selection.strokes,
+      selection.images,
+      editShape: selection.editShape,
+    );
+    if (editing) {
+      _drawShapeHandles(canvas, selection, radius, linePaint);
+      _drawVertexAngle(canvas, selection, radius);
+      return true;
+    }
 
     canvas.drawPath(
       Path()..addPolygon(box.corners, true),
@@ -499,7 +511,6 @@ class CanvasPainter extends CustomPainter {
       linePaint,
     );
 
-    final radius = SelectionTransform.handleRadius / scale;
     final fillPaint = Paint()..color = Colors.white;
     for (final MapEntry(key: handle, value: center) in handles.entries) {
       if (handle.isEdge) {
@@ -515,40 +526,6 @@ class CanvasPainter extends CustomPainter {
         handle == .rotate ? (Paint()..color = primaryColor) : fillPaint,
       );
       canvas.drawCircle(center, radius, linePaint);
-    }
-
-    // Corners of a single straight-sided shape can be dragged.
-    final vertexPaint = Paint()..color = primaryColor;
-    for (final vertex in SelectionTransform.editableVertices(
-      selection.strokes,
-      selection.images,
-    )) {
-      canvas.drawCircle(vertex, radius * 0.8, vertexPaint);
-      canvas.drawCircle(
-        vertex,
-        radius * 0.8,
-        Paint()
-          ..color = Colors.white
-          ..style = .stroke
-          ..strokeWidth = 2 / scale,
-      );
-    }
-
-    final vertexAngle = selection.vertexAngle;
-    if (vertexAngle != null) {
-      final text = TextPainter(
-        text: TextSpan(
-          text: '${vertexAngle.degrees.round()}°',
-          style: TextStyle(
-            color: primaryColor,
-            fontSize: 16 / scale,
-            fontWeight: .bold,
-            backgroundColor: Colors.white.withValues(alpha: 0.8),
-          ),
-        ),
-        textDirection: .ltr,
-      )..layout();
-      text.paint(canvas, vertexAngle.at + Offset(radius * 1.8, radius * 1.2));
     }
 
     final degrees = selection.rotationDegrees;
@@ -568,6 +545,59 @@ class CanvasPainter extends CustomPainter {
       text.paint(canvas, rotateHandle + Offset(radius * 1.8, -text.height / 2));
     }
     return true;
+  }
+
+  /// Shape editing: dots on the corners, squares on the movable sides.
+  void _drawShapeHandles(
+    Canvas canvas,
+    SelectResult selection,
+    double radius,
+    Paint linePaint,
+  ) {
+    final scale = currentScale;
+    final vertexPaint = Paint()..color = primaryColor;
+    final ring = Paint()
+      ..color = Colors.white
+      ..style = .stroke
+      ..strokeWidth = 2 / scale;
+    for (final vertex in SelectionTransform.editableVertices(
+      selection.strokes,
+      selection.images,
+      editShape: selection.editShape,
+    )) {
+      canvas.drawCircle(vertex, radius, vertexPaint);
+      canvas.drawCircle(vertex, radius, ring);
+    }
+    final fill = Paint()..color = Colors.white;
+    for (final (_, middle) in SelectionTransform.sideHandles(
+      selection.strokes,
+      selection.images,
+      editShape: selection.editShape,
+    )) {
+      final square = Rect.fromCircle(center: middle, radius: radius * 0.75);
+      canvas.drawRect(square, fill);
+      canvas.drawRect(square, linePaint);
+    }
+  }
+
+  void _drawVertexAngle(Canvas canvas, SelectResult selection, double radius) {
+    final scale = currentScale;
+    final vertexAngle = selection.vertexAngle;
+    if (vertexAngle != null) {
+      final text = TextPainter(
+        text: TextSpan(
+          text: '${vertexAngle.degrees.round()}°',
+          style: TextStyle(
+            color: primaryColor,
+            fontSize: 16 / scale,
+            fontWeight: .bold,
+            backgroundColor: Colors.white.withValues(alpha: 0.8),
+          ),
+        ),
+        textDirection: .ltr,
+      )..layout();
+      text.paint(canvas, vertexAngle.at + Offset(radius * 1.8, radius * 1.2));
+    }
   }
 
   static const double _pageIndicatorFontSize = 20;

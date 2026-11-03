@@ -60,6 +60,37 @@ abstract final class ShapeConstraints {
     }
   }
 
+  /// The sides of a shape of [kind] with [count] corners that can be
+  /// moved (side i joins corner i and the next), keeping its kind:
+  /// a rectangle's sides, a trapezoid's parallel sides, a parallelogram's
+  /// sides, a triangle's sides, a right triangle's legs. A hand-drawn
+  /// shape (null [kind]) can move any side.
+  static List<int> movableSides(LibraryShape? kind, int count) {
+    if (count < 3) return const [];
+    return switch (kind) {
+      null => [for (int i = 0; i < count; i++) i],
+      LibraryShape.rectangle ||
+      LibraryShape.parallelogram when count == 4 => const [0, 1, 2, 3],
+      LibraryShape.trapezoid when count == 4 => const [0, 2],
+      LibraryShape.triangle when count == 3 => const [0, 1, 2],
+      LibraryShape.rightTriangle when count == 3 => const [0, 1],
+      _ => const [],
+    };
+  }
+
+  /// Moves side [side] of [vertices] straight out or in by the part of
+  /// [delta] across it, so it stays parallel to where it was.
+  static List<Offset> moveSide(List<Offset> vertices, int side, Offset delta) {
+    final v = List.of(vertices);
+    final a = v[side], b = v[(side + 1) % v.length];
+    final along = _unit(b - a);
+    final normal = Offset(-along.dy, along.dx);
+    final shift = normal * _dot(delta, normal);
+    v[side] = a + shift;
+    v[(side + 1) % v.length] = b + shift;
+    return v;
+  }
+
   /// The inside angle at corner [index] of the closed shape [v], degrees.
   static double angleAt(List<Offset> v, int index) {
     final n = v.length;

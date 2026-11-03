@@ -1,8 +1,10 @@
 import 'dart:math';
 
 import 'package:flutter/widgets.dart';
+import 'package:saber/components/canvas/_graph_stroke.dart';
 import 'package:saber/components/canvas/_stroke.dart';
 import 'package:saber/components/canvas/image/editor_image.dart';
+import 'package:saber/data/tools/shape_constraints.dart';
 
 /// A handle on the box around a selection.
 enum SelectionHandle {
@@ -133,14 +135,85 @@ abstract final class SelectionTransform {
     );
   }
 
-  /// The corners that can be dragged when exactly one straight-sided
-  /// shape is selected, or empty.
+  /// Whether [stroke] is a straight line shape: just two ends to drag.
+  static bool isLine(Stroke stroke) =>
+      stroke is! GraphStroke && stroke.isShape && stroke.vertices.length == 2;
+
+  /// The single shape with handles of its own in this selection, if any.
+  static Stroke? _singleShape(List<Stroke> strokes, List<EditorImage> images) {
+    if (strokes.length != 1 || images.isNotEmpty) return null;
+    final stroke = strokes.single;
+    return stroke.vertices.isEmpty ? null : stroke;
+  }
+
+  /// Whether the selection is one shape that can switch between shape
+  /// editing and its box. Lines can't: they only have their ends.
+  static bool canEditShape(List<Stroke> strokes, List<EditorImage> images) {
+    final shape = _singleShape(strokes, images);
+    return shape != null && !isLine(shape);
+  }
+
+  /// Whether the selection shows corner and side handles instead of a
+  /// box: a single shape in shape editing, or a single line.
+  static bool isEditingShape(
+    List<Stroke> strokes,
+    List<EditorImage> images, {
+    required bool editShape,
+  }) {
+    final shape = _singleShape(strokes, images);
+    return shape != null && (editShape || isLine(shape));
+  }
+
+  /// The corners that can be dragged in shape editing, or empty.
   static List<Offset> editableVertices(
     List<Stroke> strokes,
-    List<EditorImage> images,
-  ) {
-    if (strokes.length != 1 || images.isNotEmpty) return const [];
+    List<EditorImage> images, {
+    bool editShape = true,
+  }) {
+    if (!isEditingShape(strokes, images, editShape: editShape)) {
+      return const [];
+    }
     return strokes.single.vertices;
+  }
+
+  /// In shape editing: the sides that can be moved, and their middles.
+  static List<(int side, Offset middle)> sideHandles(
+    List<Stroke> strokes,
+    List<EditorImage> images, {
+    required bool editShape,
+  }) {
+    if (!isEditingShape(strokes, images, editShape: editShape)) {
+      return const [];
+    }
+    final shape = strokes.single;
+    if (shape is GraphStroke) return const [];
+    final v = shape.vertices;
+    return [
+      for (final side in ShapeConstraints.movableSides(
+        shape.libraryKind,
+        v.length,
+      ))
+        (side, (v[side] + v[(side + 1) % v.length]) / 2),
+    ];
+  }
+
+  /// The side handle under [position], if any.
+  static int? hitTestSide(
+    Offset position,
+    List<(int, Offset)> handles,
+    double scale,
+  ) {
+    final hitRadius = handleHitRadius / scale;
+    int? best;
+    var bestDistance = double.infinity;
+    for (final (side, middle) in handles) {
+      final distance = (middle - position).distance;
+      if (distance <= hitRadius && distance < bestDistance) {
+        best = side;
+        bestDistance = distance;
+      }
+    }
+    return best;
   }
 
   /// The index of the vertex under [position], if any.

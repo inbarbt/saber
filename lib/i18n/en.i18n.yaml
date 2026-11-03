@@ -387,6 +387,8 @@ editor:
     cut: Cut
     paste: Paste
     thickness: Thickness
+    editShape: Edit the shape (corners and sides)
+    frameMode: Resize or stretch the whole shape
   menu:
     clearPage: Clear page $page/$totalPages
     clearAllPages: Clear all pages

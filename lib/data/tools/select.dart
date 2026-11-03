@@ -190,6 +190,11 @@ class SelectResult {
   /// The box turns with the content when it is rotated.
   double frameAngle = 0;
 
+  /// Whether a single selected shape shows its corner and side handles
+  /// (shape editing) instead of the box that stretches it as a whole.
+  /// Lines always show their two ends.
+  var editShape = false;
+
   /// While a corner is being dragged: the angle to show and where.
   ({Offset at, double degrees})? vertexAngle;
 

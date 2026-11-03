@@ -650,6 +650,7 @@ class EditorState extends State<Editor> {
   SelectionHandle? _selectionHandleAt(Select select, Offset position) {
     if (!select.doneSelecting) return null;
     if (select.selectResult.pageIndex != dragPageIndex) return null;
+    if (_isEditingShape(select)) return null;
     final box = _selectionBox(select.selectResult);
     if (box == null) return null;
     return SelectionTransform.hitTest(
@@ -674,12 +675,67 @@ class EditorState extends State<Editor> {
   int? _vertexIndex;
   Stroke? _vertexOriginal;
 
+  bool _isEditingShape(Select select) => SelectionTransform.isEditingShape(
+    select.selectResult.strokes,
+    select.selectResult.images,
+    editShape: select.selectResult.editShape,
+  );
+
+  /// In shape editing: the movable side whose handle is at [position].
+  int? _sideAt(Select select, Offset position) {
+    if (!select.doneSelecting) return null;
+    if (select.selectResult.pageIndex != dragPageIndex) return null;
+    return SelectionTransform.hitTestSide(
+      position,
+      SelectionTransform.sideHandles(
+        select.selectResult.strokes,
+        select.selectResult.images,
+        editShape: select.selectResult.editShape,
+      ),
+      _transformationController.value.approxScale,
+    );
+  }
+
+  /// Dragging a side in shape editing: which side, and where the drag
+  /// started. The shape as it was is [_vertexOriginal].
+  int? _sideIndex;
+  Offset _sideDragStart = .zero;
+
+  void _updateSideDrag(Select select, Offset position) {
+    final result = select.selectResult;
+    final page = coreInfo.pages[result.pageIndex];
+    final original = _vertexOriginal!;
+    final moved = ShapeConstraints.moveSide(
+      original.vertices,
+      _sideIndex!,
+      position - _sideDragStart,
+    );
+    final next = original.withVertices(moved);
+    final index = page.strokes.indexOf(result.strokes.single);
+    if (index != -1) page.strokes[index] = next;
+    result.strokes[0] = next;
+    result.path = Path()
+      ..addPolygon(next.outlinePoints(), true)
+      ..close();
+  }
+
+  /// Switches the selected shape between shape editing and its box.
+  void toggleShapeEditing() {
+    final select = currentTool;
+    if (select is! Select || !select.doneSelecting) return;
+    setState(() {
+      select.selectResult.editShape = !select.selectResult.editShape;
+      coreInfo.pages[select.selectResult.pageIndex].redrawStrokes();
+    });
+  }
+
   int? _vertexAt(Select select, Offset position) {
     if (!select.doneSelecting) return null;
     if (select.selectResult.pageIndex != dragPageIndex) return null;
     final vertices = SelectionTransform.editableVertices(
       select.selectResult.strokes,
       select.selectResult.images,
+      editShape: select.selectResult.editShape,
     );
     if (vertices.isEmpty) return null;
     return SelectionTransform.hitTestVertex(
@@ -834,6 +890,8 @@ class EditorState extends State<Editor> {
     );
     select.doneSelecting = true;
     select.selectResult.frameAngle = Select.naturalFrameAngle([stroke], []);
+    // From the shapes tool, a shape opens in shape editing
+    select.selectResult.editShape = true;
     _toolBeforeCircleLasso = currentTool;
     currentTool = select;
   }
@@ -1018,6 +1076,7 @@ class EditorState extends State<Editor> {
       final select = currentTool as Select;
       final onSelection =
           _vertexAt(select, position) != null ||
+          _sideAt(select, position) != null ||
           _selectionHandleAt(select, position) != null ||
           _isOnSelection(select, position);
       if (!onSelection) {
@@ -1068,10 +1127,15 @@ class EditorState extends State<Editor> {
     } else if (currentTool is Select) {
       final select = currentTool as Select;
       final vertex = _vertexAt(select, position);
-      final handle = vertex == null
+      final side = vertex == null ? _sideAt(select, position) : null;
+      final handle = vertex == null && side == null
           ? _selectionHandleAt(select, position)
           : null;
-      if (vertex != null) {
+      if (side != null) {
+        _sideIndex = side;
+        _sideDragStart = position;
+        _vertexOriginal = select.selectResult.strokes.single;
+      } else if (vertex != null) {
         _vertexIndex = vertex;
         final original = select.selectResult.strokes.single;
         _vertexOriginal = original;
@@ -1146,6 +1210,11 @@ class EditorState extends State<Editor> {
       removeExcessPages();
     } else if (currentTool is Select && _vertexIndex != null) {
       _updateVertexDrag(currentTool as Select, position);
+      page.redrawStrokes();
+      previousPosition = position;
+      return;
+    } else if (currentTool is Select && _sideIndex != null) {
+      _updateSideDrag(currentTool as Select, position);
       page.redrawStrokes();
       previousPosition = position;
       return;
@@ -1383,7 +1452,9 @@ class EditorState extends State<Editor> {
         }
         if (erased.isEmpty) return;
         history.recordChange(HistoricDelete(strokes: erased, images: []));
-      } else if (currentTool is Select && _vertexIndex != null) {
+      } else if (currentTool is Select &&
+          (_vertexIndex != null || _sideIndex != null)) {
+        _sideIndex = null;
         _endVertexDrag(currentTool as Select);
       } else if (currentTool is Select && _transformHandle != null) {
         _endSelectionTransform(currentTool as Select);
@@ -2778,6 +2849,14 @@ class EditorState extends State<Editor> {
                 setSelectionSize: setSelectionSize,
                 getSelectionStyle: () => selectionStyle,
                 setSelectionStyle: setSelectionStyle,
+                editingShape:
+                    SelectionTransform.canEditShape(
+                      result.strokes,
+                      result.images,
+                    )
+                    ? result.editShape
+                    : null,
+                toggleShapeEditing: toggleShapeEditing,
               ),
             ),
           ),
