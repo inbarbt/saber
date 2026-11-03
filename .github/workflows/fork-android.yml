@@ -63,7 +63,10 @@ jobs:
 
       - name: Build APK
         run: |
+          # Only 64-bit ARM (the Galaxy Tab), which makes the APK much smaller
+          # than one with every architecture.
           flutter build apk \
+            --target-platform android-arm64 \
             --build-name=${{ steps.version.outputs.name }} \
             --build-number=${{ steps.version.outputs.number }} \
             --dart-define=UPDATE_CHECK="false"
