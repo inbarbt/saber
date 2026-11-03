@@ -299,9 +299,48 @@ class EditorState extends State<Editor> {
     Keybinder.bind(_ctrlZ!, undo);
     Keybinder.bind(_ctrlY!, redo);
     Keybinder.bind(_ctrlShiftZ!, redo);
+
+    // S Pen Air actions send these keys (android/.../res/xml/remote_action.xml)
+    _airActions = [
+      (Keybinding([KeyCode.from(LogicalKeyboardKey.f6)]), toggleLasso),
+      (Keybinding([KeyCode.from(LogicalKeyboardKey.f7)]), nextNoteKind),
+      (Keybinding([KeyCode.from(LogicalKeyboardKey.f8)]), undo),
+      (Keybinding([KeyCode.from(LogicalKeyboardKey.f9)]), redo),
+    ];
+    for (final (binding, action) in _airActions) {
+      Keybinder.bind(binding, action);
+    }
+  }
+
+  var _airActions = <(Keybinding, VoidCallback)>[];
+
+  /// Switches between the lasso and the tool used before it.
+  void toggleLasso() {
+    if (coreInfo.readOnly) return;
+    setState(() {
+      if (currentTool is Select) {
+        Select.currentSelect.unselect();
+        currentTool = _toolBeforeLasso ?? Pen.currentPen;
+      } else {
+        _toolBeforeLasso = currentTool;
+        currentTool = Select.currentSelect;
+      }
+    });
+  }
+
+  Tool? _toolBeforeLasso;
+
+  /// What new writing is: regular, then a note to self, then a general note.
+  void nextNoteKind() {
+    final kind = Annotations.current.value;
+    Annotations.current.value =
+        NoteKind.values[(kind.index + 1) % NoteKind.values.length];
   }
 
   void _removeKeybindings() {
+    for (final (binding, _) in _airActions) {
+      Keybinder.remove(binding);
+    }
     if (_ctrlZ != null) Keybinder.remove(_ctrlZ!);
     if (_ctrlY != null) Keybinder.remove(_ctrlY!);
     if (_ctrlShiftZ != null) Keybinder.remove(_ctrlShiftZ!);

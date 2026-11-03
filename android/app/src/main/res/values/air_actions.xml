@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="air_action_toggle_lasso">Switch between pen and lasso</string>
+    <string name="air_action_next_note_kind">Next kind of note</string>
+    <string name="air_action_undo">Undo</string>
+    <string name="air_action_redo">Redo</string>
+</resources>

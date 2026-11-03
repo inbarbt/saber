@@ -53,6 +53,14 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
 
+            <!-- Saber+: S Pen Air actions, see res/xml/remote_action.xml -->
+            <intent-filter>
+                <action android:name="com.samsung.android.support.REMOTE_ACTION" />
+            </intent-filter>
+            <meta-data
+                android:name="com.samsung.android.support.REMOTE_ACTION"
+                android:resource="@xml/remote_action" />
+
             <!-- Support opening sbn (json), sbn2 (binary), and sba (zip) files -->
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />

@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Saber+: S Pen Air actions (pen button while the pen is in the air).
+     Each action sends a key the editor listens for. Samsung devices only;
+     turn them on in Settings > Advanced features > S Pen > Air actions. -->
+<remote-actions version="1.2">
+    <action
+        id="saber_toggle_lasso"
+        label="@string/air_action_toggle_lasso"
+        priority="1"
+        trigger_key="F6">
+        <preference name="gesture" value="click"/>
+        <preference name="button_only" value="true"/>
+    </action>
+    <action
+        id="saber_next_note_kind"
+        label="@string/air_action_next_note_kind"
+        priority="2"
+        trigger_key="F7">
+        <preference name="gesture" value="double_click"/>
+        <preference name="button_only" value="true"/>
+    </action>
+    <action
+        id="saber_undo"
+        label="@string/air_action_undo"
+        priority="3"
+        repeatable="true"
+        repeatable_interval="short"
+        trigger_key="F8">
+        <preference name="gesture" value="swipe_left"/>
+        <preference name="motion_only" value="true"/>
+    </action>
+    <action
+        id="saber_redo"
+        label="@string/air_action_redo"
+        priority="4"
+        repeatable="true"
+        repeatable_interval="short"
+        trigger_key="F9">
+        <preference name="gesture" value="swipe_right"/>
+        <preference name="motion_only" value="true"/>
+    </action>
+</remote-actions>
