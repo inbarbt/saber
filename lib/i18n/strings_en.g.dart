@@ -742,6 +742,9 @@ class Translations$settings$prefLabels$en {
 	/// en: 'Snap to other shapes'
 	String get snapToShapes => 'Snap to other shapes';
 
+	/// en: 'Turn PDFs in the notes folder into notes'
+	String get autoImportPdfs => 'Turn PDFs in the notes folder into notes';
+
 	/// en: 'Custom Saber folder'
 	String get customDataDir => 'Custom Saber folder';
 
@@ -803,6 +806,9 @@ class Translations$settings$prefDescriptions$en {
 
 	/// en: 'Draw a loop around something, lift the pen, then press and hold on the loop to select what's inside'
 	String get circleToLasso => 'Draw a loop around something, lift the pen, then press and hold on the loop to select what\'s inside';
+
+	/// en: 'A PDF that appears anywhere in the notes folder, for example uploaded to a synced folder, becomes a note with the same name. The original is kept in the hidden .imported folder'
+	String get autoImportPdfs => 'A PDF that appears anywhere in the notes folder, for example uploaded to a synced folder, becomes a note with the same name. The original is kept in the hidden .imported folder';
 
 	/// en: 'When moving shapes or their corners, or drawing from the shape library, snap to corners, centres, sides and circles of other shapes, line up edges and even out gaps'
 	String get snapToShapes => 'When moving shapes or their corners, or drawing from the shape library, snap to corners, centres, sides and circles of other shapes, line up edges and even out gaps';

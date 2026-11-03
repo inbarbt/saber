@@ -263,6 +263,11 @@ class Stows {
     true,
     volatile: !_isOnMainIsolate,
   );
+  final autoImportPdfs = PlainStow(
+    'autoImportPdfs',
+    true,
+    volatile: !_isOnMainIsolate,
+  );
 
   final printPageIndicators = PlainStow(
     'printPageIndicators',

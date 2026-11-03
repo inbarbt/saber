@@ -570,6 +570,12 @@ class _SettingsPageState extends State<SettingsPage> {
                   icon: Icons.grid_goldenratio,
                   pref: stows.snapToShapes,
                 ),
+                SettingsSwitch(
+                  title: t.settings.prefLabels.autoImportPdfs,
+                  subtitle: t.settings.prefDescriptions.autoImportPdfs,
+                  icon: Icons.picture_as_pdf,
+                  pref: stows.autoImportPdfs,
+                ),
                 SettingsSubtitle(subtitle: t.settings.prefCategories.advanced),
                 if (isSentryAvailable) const SettingsSentryConsent(),
                 if (Platform.isAndroid)
