@@ -27,7 +27,7 @@ void main() {
   );
 
   test('a straightened line has just its two ends', () {
-    final line = raw(const [Offset(0, 0), Offset(40, 3), Offset(100, 1)])
+    final line = raw(const [Offset.zero, Offset(40, 3), Offset(100, 1)])
       ..convertToLine()
       ..crisp = true;
     expect(line.vertices, hasLength(2));
