@@ -11,6 +11,7 @@ import 'package:saber/components/canvas/image/editor_image.dart';
 import 'package:saber/components/canvas/inner_canvas.dart';
 import 'package:saber/components/canvas/pencil_shader.dart';
 import 'package:saber/data/editor/editor_exporter.dart';
+import 'package:saber/data/editor/outline.dart';
 import 'package:saber/data/tools/laser_pointer.dart';
 import 'package:sbn/has_size.dart';
 
@@ -51,11 +52,15 @@ class EditorPage extends ChangeNotifier implements HasSize {
 
   EditorImage? backgroundImage;
 
+  /// This page's entries in the note's own table of contents.
+  final List<OutlineEntry> outline;
+
   bool get isEmpty =>
       strokes.isEmpty &&
       images.isEmpty &&
       quill.controller.document.isEmpty() &&
-      backgroundImage == null;
+      backgroundImage == null &&
+      outline.isEmpty;
   bool get isNotEmpty => !isEmpty;
 
   /// The height of the canvas cropped to the content.
@@ -108,7 +113,9 @@ class EditorPage extends ChangeNotifier implements HasSize {
     List<EditorImage>? images,
     QuillStruct? quill,
     this.backgroundImage,
-  }) : assert(
+    List<OutlineEntry>? outline,
+  }) : outline = outline ?? [],
+       assert(
          (size == null) || (width == null && height == null),
          "size and width/height shouldn't both be specified",
        ),
@@ -166,6 +173,11 @@ class EditorPage extends ChangeNotifier implements HasSize {
               assetCache: assetCache,
             )
           : null,
+      outline: [
+        for (final entry in json['ol'] as List? ?? const [])
+          if (entry is Map)
+            OutlineEntry.fromJson(entry.cast<String, dynamic>()),
+      ],
     );
   }
 
@@ -179,6 +191,7 @@ class EditorPage extends ChangeNotifier implements HasSize {
     if (!quill.controller.document.isEmpty())
       'q': quill.controller.document.toDelta().toJson(),
     if (backgroundImage != null) 'b': backgroundImage?.toJson(assets),
+    if (outline.isNotEmpty) 'ol': [for (final entry in outline) entry.toJson()],
   };
 
   /// Compares two strokes by pen type, then highlighter color.
@@ -310,12 +323,14 @@ class EditorPage extends ChangeNotifier implements HasSize {
     List<EditorImage>? images,
     QuillStruct? quill,
     EditorImage? backgroundImage,
+    List<OutlineEntry>? outline,
   }) => EditorPage(
     size: size ?? this.size,
     strokes: strokes ?? this.strokes,
     images: images ?? this.images,
     quill: quill ?? this.quill,
     backgroundImage: backgroundImage ?? this.backgroundImage,
+    outline: outline ?? [for (final entry in this.outline) entry.copy()],
   );
 
   /// Clones this page for use in a screenshot.

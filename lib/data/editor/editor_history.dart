@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:saber/components/canvas/_stroke.dart';
 import 'package:saber/components/canvas/image/editor_image.dart';
+import 'package:saber/data/editor/outline.dart';
 import 'package:saber/data/editor/page.dart';
 import 'package:sbn/canvas_background_pattern.dart';
 import 'package:sbn/change.dart';
@@ -149,6 +150,17 @@ sealed class Historic {
   /// The reverse of this change,
   /// e.g. switching between [HistoricAdd] and [HistoricDelete].
   Historic reverse();
+}
+
+/// A page's entries in the note's own table of contents changed.
+class const HistoricOutlineChange({
+  required final int pageIndex,
+  required final List<OutlineEntry> before,
+  required final List<OutlineEntry> after,
+}) extends Historic {
+  @override
+  HistoricOutlineChange reverse() =>
+      .new(pageIndex: pageIndex, before: after, after: before);
 }
 
 /// A stroke or image was drawn/added.

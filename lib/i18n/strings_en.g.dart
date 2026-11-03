@@ -314,6 +314,7 @@ class Translations$editor$en {
 	late final Translations$editor$shapeStyle$en shapeStyle = Translations$editor$shapeStyle$en.internal(_root);
 	late final Translations$editor$penFeel$en penFeel = Translations$editor$penFeel$en.internal(_root);
 	late final Translations$editor$eraserBar$en eraserBar = Translations$editor$eraserBar$en.internal(_root);
+	late final Translations$editor$outline$en outline = Translations$editor$outline$en.internal(_root);
 	late final Translations$editor$selectionBar$en selectionBar = Translations$editor$selectionBar$en.internal(_root);
 	late final Translations$editor$menu$en menu = Translations$editor$menu$en.internal(_root);
 	late final Translations$editor$photoPdfError$en photoPdfError = Translations$editor$photoPdfError$en.internal(_root);
@@ -1450,6 +1451,45 @@ class Translations$editor$eraserBar$en {
 
 	/// en: 'Erase shapes'
 	String get erasesShapes => 'Erase shapes';
+}
+
+// Path: editor.outline
+class Translations$editor$outline$en {
+	Translations$editor$outline$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Contents'
+	String get title => 'Contents';
+
+	/// en: 'Name'
+	String get name => 'Name';
+
+	/// en: 'Page $n'
+	String pageN({required Object n}) => 'Page ${n}';
+
+	/// en: 'Bookmark this page'
+	String get addBookmark => 'Bookmark this page';
+
+	/// en: 'No bookmarks yet. Bookmarks you add here become the contents of an exported PDF.'
+	String get empty => 'No bookmarks yet. Bookmarks you add here become the contents of an exported PDF.';
+
+	/// en: 'Rename'
+	String get rename => 'Rename';
+
+	/// en: 'Move in'
+	String get indent => 'Move in';
+
+	/// en: 'Move out'
+	String get outdent => 'Move out';
+
+	/// en: 'Delete'
+	String get delete => 'Delete';
+
+	/// en: 'From the PDF'
+	String get fromPdf => 'From the PDF';
 }
 
 // Path: editor.selectionBar

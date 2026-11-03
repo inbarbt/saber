@@ -36,6 +36,7 @@ import 'package:saber/components/toolbar/editor_bottom_sheet.dart';
 import 'package:saber/components/toolbar/editor_page_manager.dart';
 import 'package:saber/components/toolbar/floating_panel.dart';
 import 'package:saber/components/toolbar/graph_editor.dart';
+import 'package:saber/components/toolbar/pages_panel.dart';
 import 'package:saber/components/toolbar/selection_bar.dart';
 import 'package:saber/components/toolbar/selection_menu_layout.dart';
 import 'package:saber/components/toolbar/toolbar.dart';
@@ -488,6 +489,11 @@ class EditorState extends State<Editor> {
 
       case (final HistoricBackgroundPatternChange historic):
         coreInfo.backgroundPattern = historic.change.previous;
+
+      case (final HistoricOutlineChange historic):
+        coreInfo.pages[historic.pageIndex].outline
+          ..clear()
+          ..addAll([for (final entry in historic.before) entry.copy()]);
 
       case (final HistoricTransform historic):
         final page = coreInfo.pages[historic.pageIndex];
@@ -2645,6 +2651,38 @@ class EditorState extends State<Editor> {
         );
       },
       child: Scaffold(
+        key: _scaffoldKey,
+        // Opened from the pages button only: a swipe from the edge would
+        // get in the way of writing there.
+        drawerEnableOpenDragGesture: false,
+        drawer: PagesPanel(
+          coreInfo: coreInfo,
+          currentPageIndex: currentPageIndex,
+          pageManager: Builder(builder: pageManager),
+          goToPage: (pageIndex) {
+            Navigator.of(context).maybePop(); // close the panel
+            CanvasGestureDetector.scrollToPage(
+              pageIndex: pageIndex,
+              pages: coreInfo.pages,
+              screenWidth: MediaQuery.sizeOf(context).width,
+              transformationController: _transformationController,
+            );
+          },
+          onOutlineChanged: (pageIndex, before) {
+            if (coreInfo.readOnly) return;
+            history.recordChange(
+              HistoricOutlineChange(
+                pageIndex: pageIndex,
+                before: before,
+                after: [
+                  for (final entry in coreInfo.pages[pageIndex].outline)
+                    entry.copy(),
+                ],
+              ),
+            );
+            autosaveAfterDelay();
+          },
+        ),
         appBar: DynamicMaterialApp.isFullscreen
             ? null
             : AppBar(
@@ -2692,16 +2730,7 @@ class EditorState extends State<Editor> {
                       cupertinoIcon: CupertinoIcons.rectangle_grid_2x2,
                     ),
                     tooltip: t.editor.pages,
-                    onPressed: () {
-                      showDialog(
-                        context: context,
-                        builder: (context) => AdaptiveAlertDialog(
-                          title: Text(t.editor.pages),
-                          content: pageManager(context),
-                          actions: const [],
-                        ),
-                      );
-                    },
+                    onPressed: () => _scaffoldKey.currentState?.openDrawer(),
                   ),
                   IconButton(
                     icon: const AdaptiveIcon(
@@ -2994,6 +3023,8 @@ class EditorState extends State<Editor> {
     );
   }
 
+  final _scaffoldKey = GlobalKey<ScaffoldState>();
+
   Widget pageManager(BuildContext context) {
     return EditorPageManager(
       coreInfo: coreInfo,
@@ -3007,6 +3038,8 @@ class EditorState extends State<Editor> {
         if (coreInfo.readOnly) return;
         final page = coreInfo.pages[pageIndex];
         final newPage = page.copyWith(
+          // A copy of a page doesn't repeat its bookmarks
+          outline: [],
           strokes: page.strokes
               .map((stroke) => stroke.copy()..pageIndex += 1)
               .toList(),

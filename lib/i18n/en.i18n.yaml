@@ -381,6 +381,17 @@ editor:
     erasesPen: Erase pen
     erasesHighlighter: Erase highlighter
     erasesShapes: Erase shapes
+  outline:
+    title: Contents
+    name: Name
+    pageN: Page $n
+    addBookmark: Bookmark this page
+    empty: No bookmarks yet. Bookmarks you add here become the contents of an exported PDF.
+    rename: Rename
+    indent: Move in
+    outdent: Move out
+    delete: Delete
+    fromPdf: From the PDF
   selectionBar:
     delete: Delete
     duplicate: Duplicate

@@ -80,7 +80,7 @@ abstract class EditorExporter {
         pw.Page(
           pageFormat: PdfPageFormat(pageSize.width, pageSize.height),
           build: (pw.Context context) {
-            return pw.SizedBox(
+            final content = pw.SizedBox(
               width: pageSize.width,
               height: pageSize.height,
               child: pw.CustomPaint(
@@ -244,6 +244,20 @@ abstract class EditorExporter {
                   height: pageSize.height,
                 ),
               ),
+            );
+            if (page.outline.isEmpty) return content;
+            // The note's bookmarks become the PDF's table of contents
+            return pw.Stack(
+              children: [
+                content,
+                for (final (i, entry) in page.outline.indexed)
+                  pw.Outline(
+                    name: 'saber-outline-$pageIndex-$i',
+                    title: entry.title,
+                    level: entry.level,
+                    child: pw.SizedBox(width: 1, height: 1),
+                  ),
+              ],
             );
           },
         ),
