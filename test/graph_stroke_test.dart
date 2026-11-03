@@ -5,12 +5,15 @@ import 'package:saber/components/canvas/_graph_stroke.dart';
 import 'package:saber/components/canvas/_stroke.dart';
 import 'package:saber/data/editor/editor_core_info.dart';
 import 'package:saber/data/editor/page.dart';
+import 'package:saber/data/flavor_config.dart';
 import 'package:saber/data/graph/graph_spec.dart';
 import 'package:saber/data/tools/eraser.dart';
 import 'package:saber/data/tools/select.dart';
 import 'package:saber/data/tools/selection_transform.dart';
 
 void main() {
+  FlavorConfig.setup();
+
   final page = EditorPage();
 
   // A 200x200 graph of 1/x over [-5, 5]², at (100, 100) on the page
