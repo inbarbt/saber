@@ -314,6 +314,8 @@ class Translations$editor$en {
 	late final Translations$editor$shapeStyle$en shapeStyle = Translations$editor$shapeStyle$en.internal(_root);
 	late final Translations$editor$penFeel$en penFeel = Translations$editor$penFeel$en.internal(_root);
 	late final Translations$editor$eraserBar$en eraserBar = Translations$editor$eraserBar$en.internal(_root);
+	late final Translations$editor$lasso$en lasso = Translations$editor$lasso$en.internal(_root);
+	late final Translations$editor$highlighterStraight$en highlighterStraight = Translations$editor$highlighterStraight$en.internal(_root);
 	late final Translations$editor$notes$en notes = Translations$editor$notes$en.internal(_root);
 	late final Translations$editor$outline$en outline = Translations$editor$outline$en.internal(_root);
 	late final Translations$editor$selectionBar$en selectionBar = Translations$editor$selectionBar$en.internal(_root);
@@ -1452,6 +1454,45 @@ class Translations$editor$eraserBar$en {
 
 	/// en: 'Erase shapes'
 	String get erasesShapes => 'Erase shapes';
+
+	/// en: 'Erase locked'
+	String get erasesLocked => 'Erase locked';
+}
+
+// Path: editor.lasso
+class Translations$editor$lasso$en {
+	Translations$editor$lasso$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Rectangle'
+	String get rectangle => 'Rectangle';
+
+	/// en: 'Select locked'
+	String get selectLocked => 'Select locked';
+}
+
+// Path: editor.highlighterStraight
+class Translations$editor$highlighterStraight$en {
+	Translations$editor$highlighterStraight$en.internal(this._root);
+
+	final Translations _root; // ignore: unused_field
+
+	// Translations
+
+	/// en: 'Straight lines'
+	String get title => 'Straight lines';
+
+	/// en: 'When held'
+	String get hold => 'When held';
+
+	/// en: 'Always'
+	String get always => 'Always';
+
+	/// en: 'Never'
+	String get never => 'Never';
 }
 
 // Path: editor.notes
@@ -1560,6 +1601,27 @@ class Translations$editor$selectionBar$en {
 
 	/// en: 'Thickness'
 	String get thickness => 'Thickness';
+
+	/// en: 'More'
+	String get more => 'More';
+
+	/// en: 'Flip left to right'
+	String get flipHorizontal => 'Flip left to right';
+
+	/// en: 'Flip upside down'
+	String get flipVertical => 'Flip upside down';
+
+	/// en: 'Bring to front'
+	String get bringToFront => 'Bring to front';
+
+	/// en: 'Send to back'
+	String get sendToBack => 'Send to back';
+
+	/// en: 'Lock'
+	String get lock => 'Lock';
+
+	/// en: 'Unlock'
+	String get unlock => 'Unlock';
 
 	/// en: 'Edit the shape (corners and sides)'
 	String get editShape => 'Edit the shape (corners and sides)';

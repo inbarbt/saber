@@ -381,6 +381,15 @@ editor:
     erasesPen: Erase pen
     erasesHighlighter: Erase highlighter
     erasesShapes: Erase shapes
+    erasesLocked: Erase locked
+  lasso:
+    rectangle: Rectangle
+    selectLocked: Select locked
+  highlighterStraight:
+    title: Straight lines
+    hold: When held
+    always: Always
+    never: Never
   notes:
     regular: Regular writing
     toSelf: Note to self
@@ -411,6 +420,13 @@ editor:
     cut: Cut
     paste: Paste
     thickness: Thickness
+    more: More
+    flipHorizontal: Flip left to right
+    flipVertical: Flip upside down
+    bringToFront: Bring to front
+    sendToBack: Send to back
+    lock: Lock
+    unlock: Unlock
     editShape: Edit the shape (corners and sides)
     frameMode: Resize or stretch the whole shape
   menu:

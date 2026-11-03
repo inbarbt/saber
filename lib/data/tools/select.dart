@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:saber/components/canvas/_stroke.dart';
 import 'package:saber/components/canvas/image/editor_image.dart';
+import 'package:saber/data/prefs.dart';
 import 'package:saber/data/tools/_tool.dart';
 import 'package:saber/data/tools/shape_geometry.dart';
 import 'package:sbn/tool_id.dart';
@@ -71,10 +72,30 @@ class Select extends Tool {
     );
     selectResult.path.moveTo(position.dx, position.dy);
     _lassoPoints.clear();
+    _dragStart = position;
     onDragUpdate(position);
   }
 
+  /// Selects a rectangle from where the drag started, instead of a free
+  /// shape.
+  static bool get rectangle => stows.lassoRectangle.value;
+
+  Offset _dragStart = .zero;
+
   void onDragUpdate(Offset position) {
+    if (rectangle) {
+      final rect = Rect.fromPoints(_dragStart, position);
+      selectResult.path = Path()..addRect(rect);
+      _lassoPoints
+        ..clear()
+        ..addAll([
+          rect.topLeft,
+          rect.topRight,
+          rect.bottomRight,
+          rect.bottomLeft,
+        ]);
+      return;
+    }
     selectResult.path.lineTo(position.dx, position.dy);
     _lassoPoints.add(position);
   }

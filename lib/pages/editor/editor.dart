@@ -530,6 +530,18 @@ class EditorState extends State<Editor> {
       case (final HistoricBackgroundPatternChange historic):
         coreInfo.backgroundPattern = historic.change.previous;
 
+      case (final HistoricReorder historic):
+        final page = coreInfo.pages[historic.pageIndex];
+        page.strokes
+          ..clear()
+          ..addAll(historic.before);
+        page.redrawStrokes();
+
+      case (final HistoricLockChange historic):
+        for (final (i, stroke) in historic.strokes.indexed) {
+          stroke.locked = historic.before[i];
+        }
+
       case (final HistoricNoteKindChange historic):
         for (final (i, stroke) in historic.strokes.indexed) {
           stroke.noteKind = historic.before[i].$1;
@@ -620,7 +632,7 @@ class EditorState extends State<Editor> {
       pageIndexStart: pageIndex,
     );
     select.onDragEnd([
-      for (final stroke in _shownStrokes(page))
+      for (final stroke in _selectableStrokes(page))
         if (!identical(stroke, loop)) stroke,
     ], page.images);
     if (select.selectResult.isEmpty) {
@@ -662,11 +674,12 @@ class EditorState extends State<Editor> {
   /// [_holdShapeTolerance] so a shaky hand doesn't lose the shape.
   static const _holdShapeReleaseTolerance = 28.0;
 
-  bool get _holdShapeApplies =>
-      stows.holdToDrawShape.value &&
-      currentTool is Pen &&
-      currentTool is! ShapePen &&
-      currentTool is! Highlighter;
+  bool get _holdShapeApplies => currentTool is Highlighter
+      // The highlighter only straightens, when set to on hold
+      ? stows.highlighterStraight.value == 'hold'
+      : stows.holdToDrawShape.value &&
+            currentTool is Pen &&
+            currentTool is! ShapePen;
 
   void _restartHoldShapeTimer(Offset position, int pageIndex) {
     _holdShapeTimer?.cancel();
@@ -675,6 +688,12 @@ class EditorState extends State<Editor> {
       _holdShapeTimer = null;
       final stroke = Pen.currentStroke;
       if (!mounted || stroke == null) return;
+      if (currentTool is Highlighter) {
+        // Becomes a straight line when the pen lifts
+        _holdShapeSnapped = true;
+        HapticFeedback.selectionClick();
+        return;
+      }
       final points = stroke.centerline;
       if (points.length < 8) return;
       final shape = stroke.detectShape();
@@ -774,6 +793,110 @@ class EditorState extends State<Editor> {
     result.path = Path()
       ..addPolygon(next.outlinePoints(), true)
       ..close();
+  }
+
+  /// Mirrors the selection across its middle, left-right or up-down.
+  /// Images keep their orientation; they move to the mirrored place.
+  void flipSelection({required bool horizontal}) {
+    final select = currentTool;
+    if (select is! Select || !select.doneSelecting) return;
+    final result = select.selectResult;
+    final box = SelectionTransform.contentBox(result.strokes, result.images);
+    if (box == null) return;
+    final c = box.local.center;
+    final m = Matrix4.identity()
+      ..translateByDouble(c.dx, c.dy, 0, 1)
+      ..scaleByDouble(horizontal ? -1 : 1, horizontal ? 1 : -1, 1, 1)
+      ..translateByDouble(-c.dx, -c.dy, 0, 1);
+    final page = coreInfo.pages[result.pageIndex];
+    final before = List.of(result.strokes);
+    final imageRectsBefore = [for (final i in result.images) i.dstRect];
+    setState(() {
+      for (int i = 0; i < result.strokes.length; i++) {
+        final next = result.strokes[i].transformed(m);
+        final index = page.strokes.indexOf(result.strokes[i]);
+        if (index != -1) page.strokes[index] = next;
+        result.strokes[i] = next;
+      }
+      for (final image in result.images) {
+        image.dstRect = SelectionTransform.transformImageRect(image.dstRect, m);
+      }
+      result.path = result.path.transform(m.storage);
+      history.recordChange(
+        HistoricTransform(
+          pageIndex: result.pageIndex,
+          before: before,
+          after: List.of(result.strokes),
+          images: List.of(result.images),
+          imageRectsBefore: imageRectsBefore,
+          imageRectsAfter: [for (final i in result.images) i.dstRect],
+        ),
+      );
+      page.redrawStrokes();
+      autosaveAfterDelay();
+    });
+  }
+
+  /// Draws the selected strokes on top of (or under) the rest.
+  void reorderSelection({required bool toFront}) {
+    final select = currentTool;
+    if (select is! Select || !select.doneSelecting) return;
+    final result = select.selectResult;
+    final page = coreInfo.pages[result.pageIndex];
+    final selected = result.strokes.toSet();
+    final before = List.of(page.strokes);
+    final others = [
+      for (final s in page.strokes)
+        if (!selected.contains(s)) s,
+    ];
+    final mine = [
+      for (final s in page.strokes)
+        if (selected.contains(s)) s,
+    ];
+    setState(() {
+      page.strokes
+        ..clear()
+        ..addAll(toFront ? [...others, ...mine] : [...mine, ...others]);
+      history.recordChange(
+        HistoricReorder(
+          pageIndex: result.pageIndex,
+          before: before,
+          after: List.of(page.strokes),
+        ),
+      );
+      page.redrawStrokes();
+      autosaveAfterDelay();
+    });
+  }
+
+  /// Locks the selected strokes, or unlocks them if they're all locked.
+  /// Locked strokes can't be selected or erased, so locking also ends
+  /// the selection (unless the lasso selects locked strokes).
+  void toggleLockSelection() {
+    final select = currentTool;
+    if (select is! Select || !select.doneSelecting) return;
+    final result = select.selectResult;
+    final strokes = List.of(result.strokes);
+    if (strokes.isEmpty) return;
+    final lock = !strokes.every((s) => s.locked);
+    final before = [for (final s in strokes) s.locked];
+    setState(() {
+      for (final s in strokes) {
+        s.locked = lock;
+      }
+      history.recordChange(
+        HistoricLockChange(
+          pageIndex: result.pageIndex,
+          strokes: strokes,
+          before: before,
+          after: [for (final _ in strokes) lock],
+        ),
+      );
+      final pageIndex = result.pageIndex; // unselecting clears it
+      if (lock && !stows.lassoSelectsLocked.value) select.unselect();
+      coreInfo.pages[pageIndex].redrawStrokes();
+      autosaveAfterDelay();
+    });
   }
 
   /// Classifies the selected strokes as [kind] of writing.
@@ -907,10 +1030,22 @@ class EditorState extends State<Editor> {
     );
   }
 
-  /// The strokes on [page] whose kind is shown: hidden layers can't be
-  /// selected or erased.
-  static List<Stroke> _shownStrokes(EditorPage page) =>
-      page.strokes.where(Annotations.isStrokeShown).toList();
+  /// The strokes on [page] the lasso can select: shown (hidden layers
+  /// can't be selected), and not locked unless the lasso selects those.
+  static List<Stroke> _selectableStrokes(EditorPage page) => [
+    for (final s in page.strokes)
+      if (Annotations.isStrokeShown(s) &&
+          (!s.locked || stows.lassoSelectsLocked.value))
+        s,
+  ];
+
+  /// The strokes on [page] the eraser can erase, likewise.
+  static List<Stroke> _erasableStrokes(EditorPage page) => [
+    for (final s in page.strokes)
+      if (Annotations.isStrokeShown(s) &&
+          (!s.locked || stows.eraserErasesLocked.value))
+        s,
+  ];
 
   /// What other shapes snap to during the current drag, if snapping.
   SnapFeatures? _snapTargets;
@@ -1216,7 +1351,7 @@ class EditorState extends State<Editor> {
       final loop = stows.circleToLasso.value
           ? CircleToLasso.loopAt(
               position,
-              _shownStrokes(page),
+              _selectableStrokes(page),
               _transformationController.value.approxScale,
             )
           : null;
@@ -1505,6 +1640,7 @@ class EditorState extends State<Editor> {
         }
         var newStroke = (currentTool as Pen).onDragEnd();
         final snappedShape = _holdShapeSnapped ? ShapePen.detectedShape : null;
+        final heldStraight = _holdShapeSnapped && currentTool is Highlighter;
         _resetHoldShape();
         if (newStroke == null) return;
         if (newStroke.isEmpty) return;
@@ -1519,7 +1655,7 @@ class EditorState extends State<Editor> {
             ScribbleToErase.isScribble(newStroke.centerline)) {
           final erased = ScribbleToErase.strokesUnder(
             newStroke,
-            _shownStrokes(page),
+            _erasableStrokes(page),
           );
           if (erased.isNotEmpty) {
             // The scribble itself is never kept.
@@ -1532,8 +1668,14 @@ class EditorState extends State<Editor> {
           }
         }
 
-        if (stows.autoStraightenLines.value &&
+        final highlighterMode = currentTool is Highlighter
+            ? stows.highlighterStraight.value
+            : null;
+        if (highlighterMode == 'always' || heldStraight) {
+          newStroke.convertToLine();
+        } else if (stows.autoStraightenLines.value &&
             currentTool is! ShapePen &&
+            highlighterMode != 'never' &&
             newStroke.isStraightLine()) {
           newStroke.convertToLine();
         }
@@ -1598,7 +1740,7 @@ class EditorState extends State<Editor> {
           select.selectResult.pageIndexStart = select.selectResult.pageIndex;
         } else {
           shouldSave = false;
-          select.onDragEnd(_shownStrokes(page), page.images);
+          select.onDragEnd(_selectableStrokes(page), page.images);
 
           if (select.selectResult.isEmpty) {
             Select.currentSelect.unselect();
@@ -2155,13 +2297,16 @@ class EditorState extends State<Editor> {
     if (!eraser.partial) {
       for (final stroke in eraser.checkForOverlappingStrokes(
         position,
-        _shownStrokes(page),
+        _erasableStrokes(page),
       )) {
         page.strokes.remove(stroke);
       }
       return;
     }
-    final replacements = eraser.erasePartially(position, _shownStrokes(page));
+    final replacements = eraser.erasePartially(
+      position,
+      _erasableStrokes(page),
+    );
     for (final MapEntry(key: stroke, value: pieces) in replacements.entries) {
       page.strokes.remove(stroke);
       for (final piece in pieces) {
@@ -3066,6 +3211,14 @@ class EditorState extends State<Editor> {
                 getSelectionStyle: () => selectionStyle,
                 setSelectionStyle: setSelectionStyle,
                 classify: result.strokes.isEmpty ? null : classifySelection,
+                flip: (horizontal) => flipSelection(horizontal: horizontal),
+                reorder: result.strokes.isEmpty
+                    ? null
+                    : (toFront) => reorderSelection(toFront: toFront),
+                toggleLock: result.strokes.isEmpty ? null : toggleLockSelection,
+                allLocked:
+                    result.strokes.isNotEmpty &&
+                    result.strokes.every((s) => s.locked),
                 editingShape:
                     SelectionTransform.canEditShape(
                       result.strokes,

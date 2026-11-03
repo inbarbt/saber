@@ -69,6 +69,10 @@ class Stroke {
   var noteKind = NoteKind.regular;
   int? noteGroup;
 
+  /// Locked strokes aren't selected or erased (unless that's switched on
+  /// in the lasso's or eraser's settings).
+  var locked = false;
+
   /// Whether this is a drawn shape rather than handwriting.
   /// Shapes keep their line thickness when resized.
   bool get isShape => crisp;
@@ -93,6 +97,7 @@ class Stroke {
     if (libraryKind != null) 'lsh': libraryKind!.name,
     if (noteKind != NoteKind.regular) 'nk': noteKind.index,
     if (noteGroup != null) 'ng': noteGroup,
+    if (locked) 'lk': true,
   };
 
   void readStyle(Map<String, dynamic> json) {
@@ -112,6 +117,7 @@ class Stroke {
       final Int64 n => n.toInt(),
       _ => null,
     });
+    locked = json['lk'] == true;
     noteGroup = switch (json['ng']) {
       final num n => n.toInt(),
       final Int64 n => n.toInt(),
@@ -127,7 +133,8 @@ class Stroke {
     ..crisp = source.crisp
     ..libraryKind = source.libraryKind
     ..noteKind = source.noteKind
-    ..noteGroup = source.noteGroup;
+    ..noteGroup = source.noteGroup
+    ..locked = source.locked;
 
   List<Offset>? _lowQualityPolygon, _highQualityPolygon;
   List<Offset> get lowQualityPolygon =>

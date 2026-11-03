@@ -30,6 +30,7 @@ import 'package:saber/data/tools/pen.dart';
 import 'package:saber/data/tools/select.dart';
 import 'package:saber/data/tools/shape_pen.dart';
 import 'package:saber/i18n/strings.g.dart';
+import 'package:stow_plain/stow_plain.dart';
 
 /// The editor's toolbar: one row of tools, the active tool's colors,
 /// and a "more" menu. A tool's settings open in a floating panel when
@@ -101,7 +102,7 @@ class Toolbar extends StatefulWidget {
 }
 
 /// Which floating panel is open.
-enum ToolPanel { none, pen, highlighter, shape, eraser, colors }
+enum ToolPanel { none, pen, highlighter, shape, eraser, lasso, colors }
 
 class _ToolbarState extends State<Toolbar> {
   final panel = ValueNotifier(ToolPanel.none);
@@ -245,6 +246,7 @@ class _ToolbarState extends State<Toolbar> {
         (panel.value == .highlighter && tool is! Highlighter) ||
         (panel.value == .shape && tool is! ShapePen) ||
         (panel.value == .eraser && tool is! Eraser) ||
+        (panel.value == .lasso && tool is! Select) ||
         (panel.value == .colors && ColorPresets.kindFor(tool) == null)) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) panel.value = .none;
@@ -316,7 +318,7 @@ class _ToolbarState extends State<Toolbar> {
         tooltip: t.editor.toolbar.select,
         selected: tool is Select,
         enabled: !widget.readOnly,
-        onPressed: () => _onToolButton(Select.currentSelect, null),
+        onPressed: () => _onToolButton(Select.currentSelect, .lasso),
         padding: buttonPadding,
         child: const Icon(CupertinoIcons.lasso),
       ),
@@ -426,6 +428,21 @@ class _ToolbarState extends State<Toolbar> {
           final Eraser eraser => eraser,
           _ => null,
         },
+      ),
+      .lasso => Wrap(
+        spacing: 8,
+        children: [
+          _PrefChip(
+            label: t.editor.lasso.rectangle,
+            icon: Icons.crop_square,
+            stow: stows.lassoRectangle,
+          ),
+          _PrefChip(
+            label: t.editor.lasso.selectLocked,
+            icon: Icons.lock_outline,
+            stow: stows.lassoSelectsLocked,
+          ),
+        ],
       ),
       .colors => ColorGrid(
         currentColor: currentColor,
@@ -821,6 +838,29 @@ class _NoteKindButton extends StatelessWidget {
             NoteKind.values[(kind.index + 1) % NoteKind.values.length],
         padding: padding,
         child: Icon(noteKindIcon(kind)),
+      ),
+    );
+  }
+}
+
+/// A setting switched on or off from a tool's panel.
+class _PrefChip extends StatelessWidget {
+  const new({required this.label, required this.icon, required this.stow});
+
+  final String label;
+  final IconData icon;
+  final PlainStow<bool> stow;
+
+  @override
+  Widget build(BuildContext context) {
+    return ValueListenableBuilder(
+      valueListenable: stow,
+      builder: (context, value, _) => FilterChip(
+        avatar: Icon(icon, size: 18),
+        label: Text(label),
+        selected: value,
+        showCheckmark: false,
+        onSelected: (selected) => stow.value = selected,
       ),
     );
   }

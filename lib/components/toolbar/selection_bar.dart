@@ -35,6 +35,16 @@ class SelectionBar extends StatelessWidget {
   /// Classifies the selected writing; null hides the button.
   final ValueChanged<NoteKind>? classify;
 
+  /// Mirrors the selection (true: left-right).
+  final ValueChanged<bool>? flip;
+
+  /// Brings the selection to the front (true) or sends it back.
+  final ValueChanged<bool>? reorder;
+
+  /// Locks or unlocks the selection; [allLocked] says which.
+  final VoidCallback? toggleLock;
+  final bool allLocked;
+
   const new({
     super.key,
     required this.duplicateSelection,
@@ -50,6 +60,10 @@ class SelectionBar extends StatelessWidget {
     this.editingShape,
     this.toggleShapeEditing,
     this.classify,
+    this.flip,
+    this.reorder,
+    this.toggleLock,
+    this.allLocked = false,
   });
 
   /// Thicknesses offered by the picker.
@@ -216,6 +230,61 @@ class SelectionBar extends StatelessWidget {
           ),
         ),
         const _KeepAspectRatioToggle(),
+        if (flip != null || reorder != null || toggleLock != null)
+          PopupMenuButton<VoidCallback>(
+            tooltip: t.editor.selectionBar.more,
+            icon: const Icon(Icons.more_horiz),
+            onSelected: (action) => action(),
+            itemBuilder: (context) => [
+              if (flip != null) ...[
+                PopupMenuItem(
+                  value: () => flip!(true),
+                  child: ListTile(
+                    leading: const Icon(Icons.flip),
+                    title: Text(t.editor.selectionBar.flipHorizontal),
+                  ),
+                ),
+                PopupMenuItem(
+                  value: () => flip!(false),
+                  child: ListTile(
+                    leading: const RotatedBox(
+                      quarterTurns: 1,
+                      child: Icon(Icons.flip),
+                    ),
+                    title: Text(t.editor.selectionBar.flipVertical),
+                  ),
+                ),
+              ],
+              if (reorder != null) ...[
+                PopupMenuItem(
+                  value: () => reorder!(true),
+                  child: ListTile(
+                    leading: const Icon(Icons.flip_to_front),
+                    title: Text(t.editor.selectionBar.bringToFront),
+                  ),
+                ),
+                PopupMenuItem(
+                  value: () => reorder!(false),
+                  child: ListTile(
+                    leading: const Icon(Icons.flip_to_back),
+                    title: Text(t.editor.selectionBar.sendToBack),
+                  ),
+                ),
+              ],
+              if (toggleLock != null)
+                PopupMenuItem(
+                  value: toggleLock!,
+                  child: ListTile(
+                    leading: Icon(allLocked ? Icons.lock_open : Icons.lock),
+                    title: Text(
+                      allLocked
+                          ? t.editor.selectionBar.unlock
+                          : t.editor.selectionBar.lock,
+                    ),
+                  ),
+                ),
+            ],
+          ),
         IconButton(
           onPressed: deleteSelection,
           style: TextButton.styleFrom(

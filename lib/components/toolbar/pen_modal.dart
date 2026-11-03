@@ -134,6 +134,42 @@ class _PenModalState<T extends Pen> extends State<PenModal<T>> {
       ],
     );
 
+    if (pen is Highlighter) {
+      return Column(
+        mainAxisSize: .min,
+        crossAxisAlignment: .start,
+        spacing: 6,
+        children: [
+          row,
+          Text(
+            t.editor.highlighterStraight.title,
+            style: TextTheme.of(context).labelMedium,
+          ),
+          ValueListenableBuilder(
+            valueListenable: stows.highlighterStraight,
+            builder: (context, mode, _) => SegmentedButton<String>(
+              segments: [
+                ButtonSegment(
+                  value: 'hold',
+                  label: Text(t.editor.highlighterStraight.hold),
+                ),
+                ButtonSegment(
+                  value: 'always',
+                  label: Text(t.editor.highlighterStraight.always),
+                ),
+                ButtonSegment(
+                  value: 'never',
+                  label: Text(t.editor.highlighterStraight.never),
+                ),
+              ],
+              selected: {mode},
+              onSelectionChanged: (s) =>
+                  stows.highlighterStraight.value = s.single,
+            ),
+          ),
+        ],
+      );
+    }
     if (pen is ShapePen) {
       return Column(
         mainAxisSize: .min,

@@ -93,6 +93,12 @@ class _EraserBarState extends State<EraserBar> {
           onPressed: () => _toggle(stows.eraserErasesShapes),
           child: const FaIcon(FontAwesomeIcons.shapes, size: 16),
         ),
+        _OptionButton(
+          selected: stows.eraserErasesLocked.value,
+          tooltip: strings.erasesLocked,
+          onPressed: () => _toggle(stows.eraserErasesLocked),
+          child: const Icon(Icons.lock_outline, size: 18),
+        ),
       ],
     );
   }

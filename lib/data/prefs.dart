@@ -272,6 +272,35 @@ class Stows {
     volatile: !_isOnMainIsolate,
   );
 
+  /// The lasso selects a rectangle instead of a free shape.
+  final lassoRectangle = PlainStow(
+    'lassoRectangle',
+    false,
+    volatile: !_isOnMainIsolate,
+  );
+
+  /// The lasso selects locked strokes too.
+  final lassoSelectsLocked = PlainStow(
+    'lassoSelectsLocked',
+    false,
+    volatile: !_isOnMainIsolate,
+  );
+
+  /// The eraser erases locked strokes too.
+  final eraserErasesLocked = PlainStow(
+    'eraserErasesLocked',
+    false,
+    volatile: !_isOnMainIsolate,
+  );
+
+  /// When the highlighter draws straight lines: 'hold' (hold the pen still
+  /// at the end), 'always', or 'never'.
+  final highlighterStraight = PlainStow<String>(
+    'highlighterStraight',
+    'hold',
+    volatile: !_isOnMainIsolate,
+  );
+
   /// Kinds of writing (NoteKind indexes) that are hidden.
   final hiddenNoteKinds = PlainStow(
     'hiddenNoteKinds',

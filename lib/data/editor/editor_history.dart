@@ -153,6 +153,33 @@ sealed class Historic {
   Historic reverse();
 }
 
+/// The order of a page's strokes changed (brought to front or sent back).
+class const HistoricReorder({
+  required final int pageIndex,
+  required final List<Stroke> before,
+  required final List<Stroke> after,
+}) extends Historic {
+  @override
+  HistoricReorder reverse() =>
+      .new(pageIndex: pageIndex, before: after, after: before);
+}
+
+/// Strokes were locked or unlocked. [before] holds each one's old state.
+class const HistoricLockChange({
+  required final int pageIndex,
+  required final List<Stroke> strokes,
+  required final List<bool> before,
+  required final List<bool> after,
+}) extends Historic {
+  @override
+  HistoricLockChange reverse() => .new(
+    pageIndex: pageIndex,
+    strokes: strokes,
+    before: after,
+    after: before,
+  );
+}
+
 /// Strokes were classified as a different kind of writing.
 /// [before] and [after] hold each stroke's kind and annotation.
 class const HistoricNoteKindChange({
