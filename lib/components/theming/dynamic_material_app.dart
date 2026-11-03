@@ -44,10 +44,28 @@ class DynamicMaterialApp extends StatefulHookWidget {
     if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
       windowManager.setFullScreen(value);
     } else {
-      SystemChrome.setEnabledSystemUIMode(
-        value ? SystemUiMode.immersive : SystemUiMode.edgeToEdge,
-      );
+      _applySystemUiMode();
     }
+  }
+
+  /// Set by the editor while it's open, if the system bars should stay
+  /// hidden there. A swipe from the edge shows them for a moment instead
+  /// of going back.
+  static var _hideSystemBars = false;
+  static void setHideSystemBars(bool hide) {
+    if (_hideSystemBars == hide) return;
+    _hideSystemBars = hide;
+    if (Platform.isAndroid || Platform.isIOS) _applySystemUiMode();
+  }
+
+  static void _applySystemUiMode() {
+    SystemChrome.setEnabledSystemUIMode(
+      _isFullscreen.value
+          ? SystemUiMode.immersive
+          : _hideSystemBars
+          ? SystemUiMode.immersiveSticky
+          : SystemUiMode.edgeToEdge,
+    );
   }
 
   static void addFullscreenListener(void Function() listener) {

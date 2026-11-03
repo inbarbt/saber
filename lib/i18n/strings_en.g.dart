@@ -688,6 +688,9 @@ class Translations$settings$prefLabels$en {
 	/// en: 'Show the toolbar in fullscreen mode'
 	String get editorToolbarShowInFullscreen => 'Show the toolbar in fullscreen mode';
 
+	/// en: 'Hide the system bars in the editor'
+	String get editorHideSystemBars => 'Hide the system bars in the editor';
+
 	/// en: 'Invert notes in dark mode'
 	String get editorAutoInvert => 'Invert notes in dark mode';
 
@@ -759,6 +762,9 @@ class Translations$settings$prefDescriptions$en {
 	final Translations _root; // ignore: unused_field
 
 	// Translations
+
+	/// en: 'So writing near the edge of the screen doesn't trigger the back gesture. Swipe from the edge to show them for a moment'
+	String get editorHideSystemBars => 'So writing near the edge of the screen doesn\'t trigger the back gesture. Swipe from the edge to show them for a moment';
 
 	/// en: 'Increases legibility for users with low vision'
 	String get hyperlegibleFont => 'Increases legibility for users with low vision';

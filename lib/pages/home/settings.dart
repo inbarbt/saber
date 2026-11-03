@@ -457,6 +457,13 @@ class _SettingsPageState extends State<SettingsPage> {
                       : Icons.fullscreen,
                   pref: stows.editorToolbarShowInFullscreen,
                 ),
+                if (Platform.isAndroid)
+                  SettingsSwitch(
+                    title: t.settings.prefLabels.editorHideSystemBars,
+                    subtitle: t.settings.prefDescriptions.editorHideSystemBars,
+                    icon: Icons.fit_screen,
+                    pref: stows.editorHideSystemBars,
+                  ),
                 SettingsSwitch(
                   title: t.settings.prefLabels.editorAutoInvert,
                   iconBuilder: (b) {

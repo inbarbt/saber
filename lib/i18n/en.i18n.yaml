@@ -111,6 +111,7 @@ settings:
     allowInsecureConnections: Allow insecure connections
     editorToolbarAlignment: Toolbar position
     editorToolbarShowInFullscreen: Show the toolbar in fullscreen mode
+    editorHideSystemBars: Hide the system bars in the editor
     editorAutoInvert: Invert notes in dark mode
     preferGreyscale: Prefer greyscale colors
     maxImageSize: Maximum image size
@@ -133,6 +134,7 @@ settings:
     customDataDir: Custom Saber folder
     sentry: Error reporting
   prefDescriptions:
+    editorHideSystemBars: So writing near the edge of the screen doesn't trigger the back gesture. Swipe from the edge to show them for a moment
     hyperlegibleFont: Increases legibility for users with low vision
     allowInsecureConnections: (Not recommended) Allow Saber to connect to servers with self-signed/untrusted certificates
     preferGreyscale: For e-ink displays

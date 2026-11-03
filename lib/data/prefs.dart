@@ -136,6 +136,14 @@ class Stows {
     true,
     volatile: !_isOnMainIsolate,
   );
+
+  /// Hide Android's status and navigation bars in the editor, so writing
+  /// near the edge doesn't trigger the back gesture.
+  final editorHideSystemBars = PlainStow(
+    'editorHideSystemBars',
+    true,
+    volatile: !_isOnMainIsolate,
+  );
   final editorFingerDrawing = PlainStow(
     'editorFingerDrawing',
     true,

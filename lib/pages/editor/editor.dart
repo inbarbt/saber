@@ -199,6 +199,7 @@ class EditorState extends State<Editor> {
   @override
   void initState() {
     DynamicMaterialApp.addFullscreenListener(_setState);
+    DynamicMaterialApp.setHideSystemBars(stows.editorHideSystemBars.value);
 
     _initAsync();
     _assignKeybindings();
@@ -3161,6 +3162,7 @@ class EditorState extends State<Editor> {
     unawaited(_cleanUpAsync());
 
     DynamicMaterialApp.removeFullscreenListener(_setState);
+    DynamicMaterialApp.setHideSystemBars(false);
 
     _delayedSaveTimer?.cancel();
     _watchServerTimer?.cancel();
