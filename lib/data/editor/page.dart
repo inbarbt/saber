@@ -184,11 +184,22 @@ class EditorPage extends ChangeNotifier implements HasSize {
           if (entry is Map)
             OutlineEntry.fromJson(entry.cast<String, dynamic>()),
       ],
+      // Annotations are extras (names for groups of strokes), so one
+      // that can't be read is skipped rather than stopping the note
+      // from opening.
       annotations: [
         for (final a in json['an'] as List? ?? const [])
-          if (a is Map) Annotation.fromJson(a.cast<String, dynamic>()),
+          if (a is Map) ?_tryAnnotation(a.cast<String, dynamic>()),
       ],
     );
+  }
+
+  static Annotation? _tryAnnotation(Map<String, dynamic> json) {
+    try {
+      return Annotation.fromJson(json);
+    } catch (e) {
+      return null;
+    }
   }
 
   Map<String, dynamic> toJson(OrderedAssetCache assets) => {

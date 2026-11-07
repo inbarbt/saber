@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import 'package:fixnum/fixnum.dart';
 import 'package:flutter/widgets.dart';
 import 'package:saber/components/canvas/_stroke.dart';
 import 'package:saber/data/prefs.dart';
@@ -56,11 +57,19 @@ class Annotation {
   };
 
   factory fromJson(Map<String, dynamic> json) => Annotation(
-    id: (json['id'] as num).toInt(),
-    kind: NoteKind.fromIndex((json['k'] as num?)?.toInt()),
-    createdAt: (json['t'] as num?)?.toInt() ?? 0,
+    id: _int(json['id']) ?? 0,
+    kind: NoteKind.fromIndex(_int(json['k'])),
+    createdAt: _int(json['t']) ?? 0,
     name: json['n'] as String?,
   );
+
+  /// BSON saves numbers too big for 32 bits (like [createdAt]) as Int64,
+  /// which isn't a Dart num, so accept both.
+  static int? _int(Object? value) => switch (value) {
+    final num n => n.toInt(),
+    final Int64 n => n.toInt(),
+    _ => null,
+  };
 }
 
 /// Grouping strokes into annotations, and which kinds are shown.
