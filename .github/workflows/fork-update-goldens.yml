@@ -1,6 +1,8 @@
 # Regenerates the screenshot goldens (the app-store screenshots the tests
-# compare against) on GitHub's runner, after an intended change to how a
-# screen looks, and commits them to the branch it runs on.
+# compare against) and the note-file goldens (including exported PDFs,
+# which Ghostscript turns into images) on GitHub's runner, after an
+# intended change to how a screen looks or after the runner's
+# Ghostscript changes, and commits them to the branch it runs on.
 # The goldens only match on the same machine and fonts as the tests, so
 # they can't be regenerated locally.
 #
@@ -39,7 +41,7 @@ jobs:
         run: dart run golden_screenshot:download_apple_fonts
 
       - name: Regenerate goldens
-        run: flutter test --no-pub --update-goldens test/screenshot_goldens_test.dart
+        run: flutter test --no-pub --update-goldens test/screenshot_goldens_test.dart test/sbn_test.dart
 
       - name: Commit changed goldens
         run: |
