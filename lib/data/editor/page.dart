@@ -3,6 +3,7 @@ import 'dart:math';
 import 'dart:typed_data';
 import 'dart:ui' show FragmentShader;
 
+import 'package:collection/collection.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_quill/flutter_quill.dart';
 import 'package:saber/components/canvas/_asset_cache.dart';
@@ -218,11 +219,14 @@ class EditorPage extends ChangeNotifier implements HasSize {
       'an': [for (final a in used) a.toJson()],
   };
 
-  /// Compares two strokes by pen type, then highlighter color.
+  /// Puts highlighter strokes first, grouped by color, so each color
+  /// is drawn in one layer. Other strokes compare equal: their order is
+  /// the drawing order (what's in front), so it must not change.
   static int compareStrokes(Stroke a, Stroke b) {
-    final penTypeComparison = a.toolId.id.compareTo(b.toolId.id);
-    if (penTypeComparison != 0) return penTypeComparison;
-    if (a.toolId != .highlighter) return 0;
+    final aHighlighter = a.toolId == .highlighter;
+    final bHighlighter = b.toolId == .highlighter;
+    if (aHighlighter != bHighlighter) return aHighlighter ? -1 : 1;
+    if (!aHighlighter) return 0;
     return a.color.toARGB32().compareTo(b.color.toARGB32());
   }
 
@@ -240,7 +244,8 @@ class EditorPage extends ChangeNotifier implements HasSize {
   }
 
   /// Sorts the strokes by [compareStrokes].
-  void sortStrokes() => strokes.sort(compareStrokes);
+  /// A stable sort, so strokes that compare equal keep their order.
+  void sortStrokes() => mergeSort(strokes, compare: compareStrokes);
 
   static List<Stroke> parseStrokesJson(
     List<dynamic>? strokes, {

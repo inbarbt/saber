@@ -14,6 +14,7 @@ import 'package:saber/data/editor/page.dart';
 import 'package:saber/data/flavor_config.dart';
 import 'package:saber/data/graph/graph_spec.dart';
 import 'package:saber/data/tools/shape_library.dart';
+import 'package:sbn/tool_id.dart';
 
 void main() {
   FlavorConfig.setup();
@@ -137,4 +138,32 @@ void main() {
       expect(loaded.pages.first.annotations, isEmpty);
     },
   );
+
+  test('the drawing order survives a save and load', () async {
+    final original = note();
+    final page = original.pages.first;
+    // Move the first pen stroke to the front, over the shapes
+    page.strokes.add(page.strokes.removeAt(0));
+    final highlighter = Stroke(
+      color: Colors.yellow,
+      pressureEnabled: false,
+      options: StrokeOptions(size: 20),
+      pageIndex: 0,
+      page: page,
+      toolId: .highlighter,
+    )..addPoints(const [Offset.zero, Offset(100, 0)]);
+    page.strokes.insert(3, highlighter);
+    final order = [
+      for (final s in page.strokes)
+        if (s.toolId != .highlighter) s.toJson()['shape'] ?? s.toolId.id,
+    ];
+
+    final (bson, _) = original.saveToBinary(currentPageIndex: 0);
+    final loaded = (await reload(bson)).pages.first.strokes;
+    expect(loaded.first.toolId, ToolId.highlighter);
+    expect([
+      for (final s in loaded.skip(1)) s.toJson()['shape'] ?? s.toolId.id,
+    ], order);
+    expect(loaded.last.toolId, ToolId.fountainPen);
+  });
 }
