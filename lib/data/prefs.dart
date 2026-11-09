@@ -141,7 +141,7 @@ class Stows {
   /// near the edge doesn't trigger the back gesture.
   final editorHideSystemBars = PlainStow(
     'editorHideSystemBars',
-    true,
+    false,
     volatile: !_isOnMainIsolate,
   );
   final editorFingerDrawing = PlainStow(

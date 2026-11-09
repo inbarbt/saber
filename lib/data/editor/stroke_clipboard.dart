@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/widgets.dart';
 import 'package:saber/components/canvas/_stroke.dart';
 import 'package:saber/components/canvas/image/editor_image.dart';
@@ -10,13 +12,23 @@ import 'package:saber/data/editor/page.dart';
 /// of any note for as long as the app stays open. Images can only be pasted
 /// back into the note they came from, because their files live with that
 /// note.
+///
+/// It can hold a screenshot from the lasso instead: a picture of
+/// everything inside the lasso, which pastes as an image into any note.
 abstract final class StrokeClipboard {
   static List<Map<String, dynamic>> _strokes = const [];
   static List<EditorImage> _images = const [];
   static String? _sourceFilePath;
   static int? _sourcePageIndex;
 
-  static bool get isEmpty => _strokes.isEmpty && _images.isEmpty;
+  /// A lasso screenshot (PNG), where it was taken on its page, and its
+  /// size in pixels.
+  static ({Uint8List png, Rect rect, Size pixels})? _screenshot;
+  static ({Uint8List png, Rect rect, Size pixels})? get screenshot =>
+      _screenshot;
+
+  static bool get isEmpty =>
+      _strokes.isEmpty && _images.isEmpty && _screenshot == null;
   static bool get isNotEmpty => !isEmpty;
 
   /// Whether pasting into [filePath] would include images.
@@ -31,6 +43,22 @@ abstract final class StrokeClipboard {
   }) {
     _strokes = [for (final stroke in strokes) stroke.toJson()];
     _images = [for (final image in images) image.copy()];
+    _screenshot = null;
+    _sourceFilePath = filePath;
+    _sourcePageIndex = pageIndex;
+  }
+
+  /// Keeps a lasso screenshot to paste, in place of copied writing.
+  static void copyScreenshot({
+    required Uint8List png,
+    required Rect rect,
+    required Size pixels,
+    required String filePath,
+    required int pageIndex,
+  }) {
+    _strokes = const [];
+    _images = const [];
+    _screenshot = (png: png, rect: rect, pixels: pixels);
     _sourceFilePath = filePath;
     _sourcePageIndex = pageIndex;
   }
@@ -85,6 +113,7 @@ abstract final class StrokeClipboard {
   static void clear() {
     _strokes = const [];
     _images = const [];
+    _screenshot = null;
     _sourceFilePath = null;
     _sourcePageIndex = null;
   }

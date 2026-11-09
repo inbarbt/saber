@@ -1332,6 +1332,12 @@ class Translations$editor$graph$en {
 	/// en: 'Can't read this formula'
 	String get invalidFormula => 'Can\'t read this formula';
 
+	/// en: 'Axes range'
+	String get axesRange => 'Axes range';
+
+	/// en: 'Draw the function only for (empty means everywhere)'
+	String get domain => 'Draw the function only for (empty means everywhere)';
+
 	/// en: 'Axes'
 	String get axes => 'Axes';
 
@@ -1598,6 +1604,12 @@ class Translations$editor$selectionBar$en {
 
 	/// en: 'Paste'
 	String get paste => 'Paste';
+
+	/// en: 'Screenshot of what's inside, to paste as a picture'
+	String get screenshot => 'Screenshot of what\'s inside, to paste as a picture';
+
+	/// en: 'Screenshot copied. Paste it here, in another note or another app'
+	String get screenshotCopied => 'Screenshot copied. Paste it here, in another note or another app';
 
 	/// en: 'Thickness'
 	String get thickness => 'Thickness';

@@ -22,6 +22,20 @@ String graphTemplateLabel(GraphTemplate template) => switch (template) {
   .cubic => 'x³',
 };
 
+/// How the graph editor reads typed numbers.
+abstract final class GraphSpecEditorNumbers {
+  /// Reads a number the way it's typed: `-2`, `−2`, `1,5`, or a small
+  /// expression like `pi/2` or `-2pi`. Null if it can't be read.
+  static double? parse(String text) {
+    final cleaned = text.trim().replaceAll('−', '-').replaceAll(',', '.');
+    if (cleaned.isEmpty) return null;
+    final plain = double.tryParse(cleaned);
+    if (plain != null) return plain;
+    final value = Formula.tryParse(cleaned)?.call(0);
+    return value != null && value.isFinite ? value : null;
+  }
+}
+
 /// Chooses a graph's function (template or formula), its x and y range,
 /// and whether axes and asymptotes are shown. Shows a live preview.
 class GraphSpecEditor extends StatefulWidget {
@@ -41,13 +55,30 @@ class _GraphSpecEditorState extends State<GraphSpecEditor> {
   late final _xMax = TextEditingController(text: _fmt(widget.initial.xMax));
   late final _yMin = TextEditingController(text: _fmt(widget.initial.yMin));
   late final _yMax = TextEditingController(text: _fmt(widget.initial.yMax));
+  late final _domainMin = TextEditingController(
+    text: _fmtOrEmpty(widget.initial.domainMin),
+  );
+  late final _domainMax = TextEditingController(
+    text: _fmtOrEmpty(widget.initial.domainMax),
+  );
 
   static String _fmt(double v) =>
       v == v.roundToDouble() ? v.toInt().toString() : v.toString();
+  static String _fmtOrEmpty(double? v) => v == null ? '' : _fmt(v);
+
+  static double? parseNumber(String text) => GraphSpecEditorNumbers.parse(text);
 
   @override
   void dispose() {
-    for (final c in [_formula, _xMin, _xMax, _yMin, _yMax]) {
+    for (final c in [
+      _formula,
+      _xMin,
+      _xMax,
+      _yMin,
+      _yMax,
+      _domainMin,
+      _domainMax,
+    ]) {
       c.dispose();
     }
     super.dispose();
@@ -59,11 +90,25 @@ class _GraphSpecEditorState extends State<GraphSpecEditor> {
   }
 
   void _updateRange() {
-    final x0 = double.tryParse(_xMin.text), x1 = double.tryParse(_xMax.text);
-    final y0 = double.tryParse(_yMin.text), y1 = double.tryParse(_yMax.text);
+    final x0 = parseNumber(_xMin.text), x1 = parseNumber(_xMax.text);
+    final y0 = parseNumber(_yMin.text), y1 = parseNumber(_yMax.text);
     if (x0 == null || x1 == null || y0 == null || y1 == null) return;
     if (x0 >= x1 || y0 >= y1) return;
-    _update(_spec.copyWith(xMin: x0, xMax: x1, yMin: y0, yMax: y1));
+    // An empty domain field means no limit on that side
+    final d0 = parseNumber(_domainMin.text), d1 = parseNumber(_domainMax.text);
+    if (_domainMin.text.trim().isNotEmpty && d0 == null) return;
+    if (_domainMax.text.trim().isNotEmpty && d1 == null) return;
+    if (d0 != null && d1 != null && d0 >= d1) return;
+    _update(
+      _spec.copyWith(
+        xMin: x0,
+        xMax: x1,
+        yMin: y0,
+        yMax: y1,
+        domainMin: () => d0,
+        domainMax: () => d1,
+      ),
+    );
   }
 
   @override
@@ -105,6 +150,8 @@ class _GraphSpecEditorState extends State<GraphSpecEditor> {
                     xMax: _spec.xMax,
                     yMin: _spec.yMin,
                     yMax: _spec.yMax,
+                    domainMin: _spec.domainMin,
+                    domainMax: _spec.domainMax,
                     showAxes: _spec.showAxes,
                     showAsymptotes: _spec.showAsymptotes,
                   ),
@@ -141,6 +188,7 @@ class _GraphSpecEditorState extends State<GraphSpecEditor> {
           ),
         ],
         const SizedBox(height: 8),
+        Text(s.axesRange, style: TextTheme.of(context).labelMedium),
         Row(
           children: [
             const Text('x '),
@@ -152,6 +200,16 @@ class _GraphSpecEditorState extends State<GraphSpecEditor> {
             Expanded(child: _numberField(_yMin)),
             const Text(' … '),
             Expanded(child: _numberField(_yMax)),
+          ],
+        ),
+        const SizedBox(height: 8),
+        Text(s.domain, style: TextTheme.of(context).labelMedium),
+        Row(
+          children: [
+            const Text('x '),
+            Expanded(child: _numberField(_domainMin, hint: '−∞')),
+            const Text(' … '),
+            Expanded(child: _numberField(_domainMax, hint: '∞')),
           ],
         ),
         SwitchListTile(
@@ -168,16 +226,18 @@ class _GraphSpecEditorState extends State<GraphSpecEditor> {
     );
   }
 
-  Widget _numberField(TextEditingController controller) => TextField(
-    controller: controller,
-    textDirection: TextDirection.ltr,
-    keyboardType: const TextInputType.numberWithOptions(
-      signed: true,
-      decimal: true,
-    ),
-    decoration: const InputDecoration(isDense: true),
-    onChanged: (_) => _updateRange(),
-  );
+  /// A field for one number. It opens the full keyboard: the number pad
+  /// on some keyboards (Samsung's among them) has no minus sign.
+  Widget _numberField(TextEditingController controller, {String? hint}) =>
+      TextField(
+        controller: controller,
+        textDirection: TextDirection.ltr,
+        keyboardType: TextInputType.visiblePassword,
+        autocorrect: false,
+        enableSuggestions: false,
+        decoration: InputDecoration(isDense: true, hintText: hint),
+        onChanged: (_) => _updateRange(),
+      );
 }
 
 /// Draws a small graph for previews and picker icons.

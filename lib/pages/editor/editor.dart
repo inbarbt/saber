@@ -174,6 +174,7 @@ class EditorState extends State<Editor> {
   Tool get currentTool => _currentTool;
   set currentTool(Tool tool) {
     _currentTool = tool;
+    _lassoRegion = null;
     if (tool is! Eraser) _lastNonEraserTool = tool;
     stows.lastTool.value = tool.toolId;
   }
@@ -1308,6 +1309,7 @@ class EditorState extends State<Editor> {
 
   void onDrawStart(ScaleStartDetails details) {
     _drawGestureActive = true;
+    _lassoRegion = null;
     final page = coreInfo.pages[dragPageIndex!];
     final position = page.renderBox!.globalToLocal(details.focalPoint);
     history.canRedo = false;
@@ -1743,6 +1745,13 @@ class EditorState extends State<Editor> {
           select.onDragEnd(_selectableStrokes(page), page.images);
 
           if (select.selectResult.isEmpty) {
+            // Nothing to select (say, a lasso around part of a PDF):
+            // keep the lasso, so it can still be screenshotted.
+            final path = Path.from(select.selectResult.path);
+            final bounds = path.getBounds();
+            if (bounds.width >= 8 && bounds.height >= 8) {
+              _lassoRegion = (pageIndex: dragPageIndex!, path: path);
+            }
             Select.currentSelect.unselect();
           }
         }
@@ -2498,6 +2507,49 @@ class EditorState extends State<Editor> {
     setState(() {}); // shows the paste button
   }
 
+  /// A lasso that selected nothing, kept for its screenshot button.
+  ({int pageIndex, Path path})? _lassoRegion;
+
+  /// Copies a picture of everything inside the lasso (the page's
+  /// background, images and writing) to paste as an image. It also goes
+  /// to the system clipboard, for other apps.
+  Future<void> screenshotLasso() async {
+    final select = Select.currentSelect;
+    final region =
+        _lassoRegion ??
+        (select.doneSelecting && !select.selectResult.isEmpty
+            ? (
+                pageIndex: select.selectResult.pageIndex,
+                path: select.selectResult.path,
+              )
+            : null);
+    if (region == null) return;
+    final shot = await LassoScreenshot.capture(
+      coreInfo: coreInfo,
+      pageIndex: region.pageIndex,
+      path: region.path,
+    );
+    if (shot == null || !mounted) return;
+    StrokeClipboard.copyScreenshot(
+      png: shot.png,
+      rect: shot.rect,
+      pixels: shot.pixels,
+      filePath: coreInfo.filePath,
+      pageIndex: region.pageIndex,
+    );
+    try {
+      final item = DataWriterItem()..add(Formats.png(shot.png));
+      await SystemClipboard.instance?.write([item]);
+    } catch (e) {
+      log.warning('Could not put the screenshot on the system clipboard: $e');
+    }
+    if (!mounted) return;
+    setState(() => _lassoRegion = null);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(t.editor.selectionBar.screenshotCopied)),
+    );
+  }
+
   /// Copies the current selection, then deletes it.
   void cutSelection() {
     final select = currentTool as Select;
@@ -2535,12 +2587,31 @@ class EditorState extends State<Editor> {
       page: page,
       offset: offset,
     );
-    final images = StrokeClipboard.imagesFor(
-      filePath: coreInfo.filePath,
-      pageIndex: pageIndex,
-      nextImageId: () => coreInfo.nextImageId++,
-      offset: offset,
-    );
+    final shot = StrokeClipboard.screenshot;
+    final images = shot != null
+        ? [
+            PngEditorImage(
+              id: coreInfo.nextImageId++,
+              extension: '.png',
+              imageProvider: MemoryImage(shot.png),
+              pageIndex: pageIndex,
+              pageSize: page.size,
+              onMoveImage: onMoveImage,
+              onDeleteImage: onDeleteImage,
+              onMiscChange: autosaveAfterDelay,
+              onLoad: () => setState(() {}),
+              assetCache: coreInfo.assetCache,
+              dstRect: shot.rect.shift(offset),
+              srcRect: Offset.zero & shot.pixels,
+              naturalSize: shot.pixels,
+            ),
+          ]
+        : StrokeClipboard.imagesFor(
+            filePath: coreInfo.filePath,
+            pageIndex: pageIndex,
+            nextImageId: () => coreInfo.nextImageId++,
+            offset: offset,
+          );
     if (strokes.isEmpty && images.isEmpty) return;
 
     setState(() {
@@ -3166,6 +3237,9 @@ class EditorState extends State<Editor> {
       animation: _transformationController,
       builder: (context, _) {
         final select = currentTool;
+        if (select is Select && _lassoRegion != null && !_drawGestureActive) {
+          return _lassoRegionMenu(_lassoRegion!);
+        }
         if (select is! Select || !select.doneSelecting || _drawGestureActive) {
           return const SizedBox.shrink();
         }
@@ -3205,6 +3279,7 @@ class EditorState extends State<Editor> {
                 pasteSelection: StrokeClipboard.isNotEmpty
                     ? pasteFromStrokeClipboard
                     : null,
+                screenshot: screenshotLasso,
                 editGraph: _selectedGraph != null ? editSelectedGraph : null,
                 getSelectionSize: () => selectionSize,
                 setSelectionSize: setSelectionSize,
@@ -3232,6 +3307,56 @@ class EditorState extends State<Editor> {
           ),
         );
       },
+    );
+  }
+
+  /// The menu for a lasso that selected nothing: just its screenshot
+  /// button (and paste, if there's something to paste).
+  Widget _lassoRegionMenu(({int pageIndex, Path path}) region) {
+    final pageBox = coreInfo.pages[region.pageIndex].renderBox;
+    final stackBox =
+        _canvasStackKey.currentContext?.findRenderObject() as RenderBox?;
+    if (pageBox == null ||
+        stackBox == null ||
+        !pageBox.attached ||
+        !stackBox.hasSize) {
+      return const SizedBox.shrink();
+    }
+    final bounds = region.path.getBounds();
+    final anchor = Rect.fromPoints(
+      stackBox.globalToLocal(pageBox.localToGlobal(bounds.topLeft)),
+      stackBox.globalToLocal(pageBox.localToGlobal(bounds.bottomRight)),
+    );
+    final colors = ColorScheme.of(context);
+    return CustomSingleChildLayout(
+      delegate: SelectionMenuLayout(anchor),
+      child: TapRegion(
+        groupId: Toolbar.tapGroup,
+        child: FloatingPanel(
+          padding: const .symmetric(horizontal: 4, vertical: 2),
+          child: Row(
+            mainAxisSize: .min,
+            children: [
+              IconButton(
+                onPressed: screenshotLasso,
+                tooltip: t.editor.selectionBar.screenshot,
+                color: colors.secondary,
+                icon: const Icon(Icons.screenshot),
+              ),
+              if (StrokeClipboard.isNotEmpty)
+                IconButton(
+                  onPressed: () {
+                    setState(() => _lassoRegion = null);
+                    pasteFromStrokeClipboard();
+                  },
+                  tooltip: t.editor.selectionBar.paste,
+                  color: colors.secondary,
+                  icon: const Icon(Icons.content_paste),
+                ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 

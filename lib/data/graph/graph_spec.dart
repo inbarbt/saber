@@ -83,6 +83,8 @@ class GraphSpec {
     this.xMax = 5,
     this.yMin = -5,
     this.yMax = 5,
+    this.domainMin,
+    this.domainMax,
     this.showAxes = true,
     this.showAsymptotes = true,
   });
@@ -91,8 +93,19 @@ class GraphSpec {
   final GraphTemplate? template;
   final String formula;
   final double a, b, h, k;
+
+  /// The axes: the part of the plane the graph's box shows.
   final double xMin, xMax, yMin, yMax;
+
+  /// Where the function is drawn, if only part of the x axis.
+  /// Null means no limit on that side.
+  final double? domainMin, domainMax;
   final bool showAxes, showAsymptotes;
+
+  /// The x range the curve is drawn over: the axes, cut to the domain.
+  double get drawMin => math.max(xMin, domainMin ?? double.negativeInfinity);
+  double get drawMax => math.min(xMax, domainMax ?? double.infinity);
+  double get drawSpan => drawMax - drawMin;
 
   bool get isFormula => template == null;
 
@@ -119,14 +132,18 @@ class GraphSpec {
     for (final u0 in t.verticalAsymptotesU) {
       if (period == null) {
         final x = h + u0 / b;
-        if (x > xMin && x < xMax) result.add(x);
+        if (x > drawMin && x < drawMax) result.add(x);
       } else {
         // x = h + (u0 + n·period)/b, for every n landing in range
         final xPeriod = (period / b).abs();
         final first = h + u0 / b;
-        var n = ((xMin - first) / xPeriod).ceil();
-        for (var x = first + n * xPeriod; x < xMax; x = first + ++n * xPeriod) {
-          if (x > xMin) result.add(x);
+        var n = ((drawMin - first) / xPeriod).ceil();
+        for (
+          var x = first + n * xPeriod;
+          x < drawMax;
+          x = first + ++n * xPeriod
+        ) {
+          if (x > drawMin) result.add(x);
         }
       }
     }
@@ -135,6 +152,9 @@ class GraphSpec {
 
   /// y positions of horizontal asymptotes inside the y range.
   List<double> horizontalAsymptotes() {
+    // The curve only levels off toward a side the domain leaves open
+    final openSides = [if (domainMax == null) 1.0, if (domainMin == null) -1.0];
+    if (openSides.isEmpty) return const [];
     final t = template;
     if (t != null) {
       return t.hasHorizontalAsymptote && k > yMin && k < yMax ? [k] : const [];
@@ -142,7 +162,7 @@ class GraphSpec {
     final f = function;
     if (f == null) return const [];
     final result = <double>{};
-    for (final sign in const [1.0, -1.0]) {
+    for (final sign in openSides) {
       final far = [1e3, 1e4, 1e5].map((m) => f(sign * m * xSpan)).toList();
       if (far.any((y) => !y.isFinite)) continue;
       final settled =
@@ -166,11 +186,12 @@ class GraphSpec {
     final f = function;
     if (f == null) return const [];
     final result = <double>[];
-    final step = xSpan / samples;
-    var prevX = xMin;
+    if (drawSpan <= 0) return result;
+    final step = drawSpan / samples;
+    var prevX = drawMin;
     var prevY = f(prevX);
     for (int i = 1; i <= samples; i++) {
-      final x = xMin + i * step;
+      final x = drawMin + i * step;
       final y = f(x);
       if (_looksLikePole(prevY, y)) {
         final pole = _refinePole(f, prevX, x);
@@ -242,11 +263,11 @@ class GraphSpec {
   /// curve really climbs toward them.
   List<List<Offset>> curvePieces() {
     final f = function;
-    if (f == null || xSpan <= 0 || ySpan <= 0) return const [];
+    if (f == null || drawSpan <= 0 || ySpan <= 0) return const [];
     final poles = verticalAsymptotes();
 
     final xs = <double>[
-      for (int i = 0; i <= samples; i++) xMin + i * xSpan / samples,
+      for (int i = 0; i <= samples; i++) drawMin + i * drawSpan / samples,
       for (final pole in poles)
         for (final d in const [1e-2, 3e-3, 1e-3, 3e-4, 1e-4, 1e-5, 1e-6]) ...[
           pole - d * xSpan,
@@ -257,7 +278,7 @@ class GraphSpec {
           template == GraphTemplate.logarithm)
         for (final d in const [1e-2, 1e-3, 1e-4, 1e-6])
           h + (b == 0 ? 0 : d * xSpan / b.sign),
-    ]..retainWhere((x) => x >= xMin && x <= xMax);
+    ]..retainWhere((x) => x >= drawMin && x <= drawMax);
     xs.sort();
 
     // Far outside the visible range, points only need to say "off the top"
@@ -328,6 +349,8 @@ class GraphSpec {
     double? xMax,
     double? yMin,
     double? yMax,
+    double? Function()? domainMin,
+    double? Function()? domainMax,
     bool? showAxes,
     bool? showAsymptotes,
   }) => GraphSpec(
@@ -341,6 +364,8 @@ class GraphSpec {
     xMax: xMax ?? this.xMax,
     yMin: yMin ?? this.yMin,
     yMax: yMax ?? this.yMax,
+    domainMin: domainMin != null ? domainMin() : this.domainMin,
+    domainMax: domainMax != null ? domainMax() : this.domainMax,
     showAxes: showAxes ?? this.showAxes,
     showAsymptotes: showAsymptotes ?? this.showAsymptotes,
   );
@@ -356,15 +381,18 @@ class GraphSpec {
     'gx1': xMax,
     'gy0': yMin,
     'gy1': yMax,
+    if (domainMin != null) 'gd0': domainMin,
+    if (domainMax != null) 'gd1': domainMax,
     'gax': showAxes,
     'gas': showAsymptotes,
   };
 
   factory fromJson(Map<String, dynamic> json) {
-    double d(String key, double fallback) => switch (json[key]) {
+    double? n(String key) => switch (json[key]) {
       (final num v) => v.toDouble(),
-      _ => fallback,
+      _ => null,
     };
+    double d(String key, double fallback) => n(key) ?? fallback;
     return GraphSpec(
       template: GraphTemplate.fromName(json['gt'] as String?),
       formula: json['gf'] as String? ?? '',
@@ -376,6 +404,8 @@ class GraphSpec {
       xMax: d('gx1', 5),
       yMin: d('gy0', -5),
       yMax: d('gy1', 5),
+      domainMin: n('gd0'),
+      domainMax: n('gd1'),
       showAxes: json['gax'] as bool? ?? true,
       showAsymptotes: json['gas'] as bool? ?? true,
     );
@@ -394,6 +424,8 @@ class GraphSpec {
       other.xMax == xMax &&
       other.yMin == yMin &&
       other.yMax == yMax &&
+      other.domainMin == domainMin &&
+      other.domainMax == domainMax &&
       other.showAxes == showAxes &&
       other.showAsymptotes == showAsymptotes;
 
@@ -409,6 +441,8 @@ class GraphSpec {
     xMax,
     yMin,
     yMax,
+    domainMin,
+    domainMax,
     showAxes,
     showAsymptotes,
   );

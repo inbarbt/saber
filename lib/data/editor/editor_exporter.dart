@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 import 'dart:math';
+import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -331,6 +332,77 @@ abstract class EditorExporter {
       for (final image in imagesToLoad) unawaited(image.loadOut());
       page.disposeClonedData();
     }
+  }
+}
+
+/// A picture of part of a page, cut out along a lasso.
+/// [pixels] is the picture's size in pixels.
+typedef RegionScreenshot = ({Uint8List png, Rect rect, Size pixels});
+
+/// Screenshots of a lasso's area, for the lasso's screenshot button.
+abstract final class LassoScreenshot {
+  /// A PNG of what's inside [path] on page [pageIndex]: the background
+  /// (lines, PDF), images and writing, with everything outside the lasso
+  /// left transparent. [RegionScreenshot.rect] is where it sat on the page.
+  /// Null if the lasso doesn't cover any of the page.
+  static Future<RegionScreenshot?> capture({
+    required EditorCoreInfo coreInfo,
+    required int pageIndex,
+    required Path path,
+    double pixelRatio = 2,
+  }) async {
+    final pageSize = coreInfo.pages[pageIndex].size;
+    final rect = path.getBounds().intersect(Offset.zero & pageSize);
+    if (rect.width < 1 || rect.height < 1) return null;
+    final page = await EditorExporter.screenshotPage(
+      coreInfo: coreInfo,
+      pageIndex: pageIndex,
+      rasterizeAllStrokes: true,
+      pixelRatio: pixelRatio,
+    );
+    try {
+      final cut = await cutOut(page, path, rect, pageSize);
+      try {
+        final bytes = await cut.toByteData(format: ui.ImageByteFormat.png);
+        if (bytes == null) return null;
+        return (
+          png: bytes.buffer.asUint8List(),
+          rect: rect,
+          pixels: Size(cut.width.toDouble(), cut.height.toDouble()),
+        );
+      } finally {
+        cut.dispose();
+      }
+    } finally {
+      page.dispose();
+    }
+  }
+
+  /// The part of [page] (a picture of a page of [pageSize]) inside
+  /// [path], cropped to [rect]. Pixels outside the path are transparent.
+  @visibleForTesting
+  static Future<ui.Image> cutOut(
+    ui.Image page,
+    Path path,
+    Rect rect,
+    Size pageSize,
+  ) {
+    final ratio = page.width / pageSize.width;
+    final width = max(1, (rect.width * ratio).round());
+    final height = max(1, (rect.height * ratio).round());
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder)
+      ..scale(ratio)
+      ..translate(-rect.left, -rect.top)
+      ..clipPath(path);
+    canvas.drawImageRect(
+      page,
+      Rect.fromLTWH(0, 0, page.width.toDouble(), page.height.toDouble()),
+      Offset.zero & pageSize,
+      Paint()..filterQuality = FilterQuality.medium,
+    );
+    final picture = recorder.endRecording();
+    return picture.toImage(width, height).whenComplete(picture.dispose);
   }
 }
 

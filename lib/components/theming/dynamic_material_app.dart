@@ -58,6 +58,15 @@ class DynamicMaterialApp extends StatefulHookWidget {
     if (Platform.isAndroid || Platform.isIOS) _applySystemUiMode();
   }
 
+  /// The system bars appeared or hid. That's the app's full screen being
+  /// left or entered, unless the editor hid them itself: then the app
+  /// isn't in full screen, and its top bar (with the back button) stays.
+  @visibleForTesting
+  static void systemBarsChanged({required bool visible}) {
+    if (_hideSystemBars && !_isFullscreen.value) return;
+    setFullscreen(!visible, updateSystem: false);
+  }
+
   static void _applySystemUiMode() {
     SystemChrome.setEnabledSystemUIMode(
       _isFullscreen.value
@@ -98,10 +107,7 @@ class DynamicMaterialAppState extends State<DynamicMaterialApp>
   }
 
   Future<void> _onFullscreenChange(bool systemOverlaysAreVisible) async {
-    DynamicMaterialApp.setFullscreen(
-      !systemOverlaysAreVisible,
-      updateSystem: false,
-    );
+    DynamicMaterialApp.systemBarsChanged(visible: systemOverlaysAreVisible);
   }
 
   @override

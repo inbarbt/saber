@@ -348,6 +348,8 @@ editor:
     edit: Edit graph
     formula: Formula
     invalidFormula: Can't read this formula
+    axesRange: Axes range
+    domain: Draw the function only for (empty means everywhere)
     axes: Axes
     asymptotes: Asymptotes
   shapeLibrary:
@@ -419,6 +421,8 @@ editor:
     copy: Copy
     cut: Cut
     paste: Paste
+    screenshot: Screenshot of what's inside, to paste as a picture
+    screenshotCopied: Screenshot copied. Paste it here, in another note or another app
     thickness: Thickness
     more: More
     flipHorizontal: Flip left to right

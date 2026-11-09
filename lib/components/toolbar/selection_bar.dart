@@ -15,6 +15,10 @@ class SelectionBar extends StatelessWidget {
   /// Null hides the paste button (nothing to paste).
   final VoidCallback? pasteSelection;
 
+  /// Copies a picture of everything inside the lasso, to paste as an
+  /// image. Null hides the button.
+  final VoidCallback? screenshot;
+
   /// Null hides the edit-graph button (no single graph selected).
   final VoidCallback? editGraph;
 
@@ -52,6 +56,7 @@ class SelectionBar extends StatelessWidget {
     this.copySelection,
     this.cutSelection,
     this.pasteSelection,
+    this.screenshot,
     this.editGraph,
     this.getSelectionSize,
     this.setSelectionSize,
@@ -185,6 +190,12 @@ class SelectionBar extends StatelessWidget {
             onPressed: copySelection!,
             tooltip: t.editor.selectionBar.copy,
             icon: Icons.copy_all,
+          ),
+        if (screenshot != null)
+          _SelectionBarButton(
+            onPressed: screenshot!,
+            tooltip: t.editor.selectionBar.screenshot,
+            icon: Icons.screenshot,
           ),
         if (cutSelection != null)
           _SelectionBarButton(
