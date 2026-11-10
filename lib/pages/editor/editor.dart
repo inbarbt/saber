@@ -1722,9 +1722,9 @@ class EditorState extends State<Editor> {
       } else if (currentTool is Select && _transformHandle != null) {
         _endSelectionTransform(currentTool as Select);
       } else if (currentTool is Select) {
-        if (moveOffset == .zero) return;
         final select = currentTool as Select;
         if (select.doneSelecting) {
+          if (moveOffset == .zero) return;
           history.recordChange(
             HistoricMove(
               pageIndex: select.selectResult.pageIndex,
@@ -2571,14 +2571,48 @@ class EditorState extends State<Editor> {
     });
   }
 
+  /// The middle of the screen, in the coordinates of page [pageIndex].
+  /// Null before the page has been laid out.
+  Offset? _visibleCenterOnPage(int pageIndex) {
+    final pageBox = coreInfo.pages[pageIndex].renderBox;
+    final stackBox =
+        _canvasStackKey.currentContext?.findRenderObject() as RenderBox?;
+    if (pageBox == null ||
+        stackBox == null ||
+        !pageBox.attached ||
+        !stackBox.hasSize) {
+      return null;
+    }
+    final center = pageBox.globalToLocal(
+      stackBox.localToGlobal(stackBox.size.center(Offset.zero)),
+    );
+    final size = coreInfo.pages[pageIndex].size;
+    return Offset(
+      center.dx.clamp(0, size.width),
+      center.dy.clamp(0, size.height),
+    );
+  }
+
   /// Pastes Saber+'s clipboard onto the page in view, and selects it
   /// so it can be dragged into place.
   void pasteFromStrokeClipboard() {
+    try {
+      _pasteFromStrokeClipboard();
+    } catch (e, st) {
+      log.severe('Paste failed', e, st);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(t.editor.selectionBar.pasteFailed(error: e))),
+      );
+    }
+  }
+
+  void _pasteFromStrokeClipboard() {
     if (StrokeClipboard.isEmpty || coreInfo.readOnly) return;
     final pageIndex = currentPageIndex;
     createPage(pageIndex);
     final page = coreInfo.pages[pageIndex];
-    final offset = StrokeClipboard.pasteOffset(
+    var offset = StrokeClipboard.pasteOffset(
       filePath: coreInfo.filePath,
       pageIndex: pageIndex,
     );
@@ -2588,6 +2622,12 @@ class EditorState extends State<Editor> {
       offset: offset,
     );
     final shot = StrokeClipboard.screenshot;
+    if (shot != null) {
+      // A screenshot goes in the middle of what's on screen, so the copy
+      // is easy to see instead of landing on top of where it was taken.
+      final center = _visibleCenterOnPage(pageIndex);
+      if (center != null) offset = center - shot.rect.center;
+    }
     final images = shot != null
         ? [
             PngEditorImage(

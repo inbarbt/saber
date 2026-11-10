@@ -1611,6 +1611,9 @@ class Translations$editor$selectionBar$en {
 	/// en: 'Screenshot copied. Paste it here, in another note or another app'
 	String get screenshotCopied => 'Screenshot copied. Paste it here, in another note or another app';
 
+	/// en: 'Couldn't paste: $error'
+	String pasteFailed({required Object error}) => 'Couldn\'t paste: ${error}';
+
 	/// en: 'Thickness'
 	String get thickness => 'Thickness';
 

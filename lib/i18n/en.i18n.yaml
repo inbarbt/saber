@@ -423,6 +423,7 @@ editor:
     paste: Paste
     screenshot: Screenshot of what's inside, to paste as a picture
     screenshotCopied: Screenshot copied. Paste it here, in another note or another app
+    pasteFailed: "Couldn't paste: $error"
     thickness: Thickness
     more: More
     flipHorizontal: Flip left to right
